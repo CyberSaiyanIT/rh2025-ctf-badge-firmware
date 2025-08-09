@@ -17,8 +17,8 @@
         "path": "a/why2025"
     },
     "display": {
-        "brightness_max": 255,
-        "brightness_mid": 80,
+        "brightness_max": 205,
+        "brightness_mid": 128,
         "brightness_off": 0
     }
 }

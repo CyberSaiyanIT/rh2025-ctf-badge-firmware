@@ -37,7 +37,7 @@ void led_init()
     i2c_master_init();
     // setup aw9523b led drivers.
     // chip 1, address = 0x5a; chip 2, address = 0x5b.
-    i2c_register_write(0x5a, 0x11, 0x03);
+    i2c_register_write(0x5a, 0x11, 0x01);
     i2c_register_write(0x5a, 0x12, 0x80);
     i2c_register_write(0x5a, 0x13, 0x80);    
 
