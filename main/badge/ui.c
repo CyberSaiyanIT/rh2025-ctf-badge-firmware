@@ -1,7 +1,7 @@
 #include "ui.h"
 #include "led.h"
 
-enum screen_order {SCREEN_LOGO, SCREEN_EVENT, SCREEN_RADAR, SCREEN_RSSI,  SCREEN_ADMIN, SCREEN_SNAKE, NUM_SCREENS};
+enum screen_order {SCREEN_LOGO, SCREEN_NYAN, SCREEN_EVENT, SCREEN_RADAR, SCREEN_RSSI,  SCREEN_ADMIN, SCREEN_SNAKE, NUM_SCREENS};
 static lv_obj_t* screens[NUM_SCREENS];
 static int8_t current_screen = SCREEN_LOGO;
 
@@ -27,6 +27,23 @@ static int8_t counter_screen = -1; // Initialize to invalid screen index
 // Forward declarations
 void ui_update_ip_info(void);
 void ui_list_all_netifs(void);
+
+
+//Nyan images
+LV_IMG_DECLARE(saiyancat_only);
+LV_IMG_DECLARE(saiyan_tail_sprite);
+LV_IMG_DECLARE(nyan_star_sprite);
+static lv_obj_t *tail;
+
+static void anim_tail_cb(void *var, lv_anim_value_t v) {
+    lv_img_set_offset_x(tail, -v * 27);
+    lv_img_set_offset_y(tail, v * 10);
+}
+
+static void anim_star_cb(void *var, lv_anim_value_t v) {
+    lv_obj_t * star = (lv_obj_t *)var; 
+    lv_img_set_offset_x(star, -v * 32);
+}
 
 void restore_current_task(){
     if(current_screen == SCREEN_RSSI){
@@ -54,7 +71,7 @@ void pause_current_task(){
 static bool ui_update_backlight(bool trigger)
 {
     uint32_t span = lv_tick_get() - last_trigger;
-
+    
     if (trigger)
     {
         set_screen_led_backlight(badge_obj.brightness_max);
@@ -134,6 +151,8 @@ void ui_button_up()
         case SCREEN_SNAKE:
             lv_task_set_prio(snake_task_handle, LV_TASK_PRIO_LOW);
             snake_set_dir(1);
+            break;
+        case SCREEN_NYAN:
             break;
         case SCREEN_ADMIN:
             switch(admin_state){
@@ -448,6 +467,247 @@ void ui_screen_splash_init(){
     lv_obj_add_style(logo, LV_OBJ_PART_MAIN, &style);
 
     screens[SCREEN_LOGO] = screen_logo;
+}
+
+
+static void set_rainbow_y(void *bar, int32_t v) {
+    lv_obj_set_y((lv_obj_t *)bar, v);
+}
+static void create_rainbow_bar(lv_obj_t *parent, lv_color_t color, int y_offset) {
+    lv_obj_t *bar1 = lv_obj_create(parent, NULL);
+    lv_obj_set_size(bar1, 40, 10);
+    lv_obj_set_y(bar1, y_offset);
+
+    lv_obj_t *bar2 = lv_obj_create(parent, NULL);
+    lv_obj_set_size(bar2, 40, 10);
+    lv_obj_set_y(bar2, y_offset-5);
+    lv_obj_set_x(bar2, 40);
+
+    lv_obj_t *bar3 = lv_obj_create(parent, NULL);
+    lv_obj_set_size(bar3, 40, 10);
+    lv_obj_set_y(bar3, y_offset);
+    lv_obj_set_x(bar3, 80);
+
+    lv_obj_t *bar4 = lv_obj_create(parent, NULL);
+    lv_obj_set_size(bar4, 40, 10);
+    lv_obj_set_y(bar4, y_offset+5);
+    lv_obj_set_x(bar4, 120);
+
+    // Creazione style
+    lv_style_t *style = lv_mem_alloc(sizeof(lv_style_t));
+    lv_style_init(style);
+    lv_style_set_bg_opa(style, LV_STATE_DEFAULT, LV_OPA_COVER);
+    lv_style_set_bg_color(style, LV_STATE_DEFAULT, color);
+    lv_style_set_border_width(style, LV_STATE_DEFAULT, 0);
+    lv_style_set_radius(style, LV_STATE_DEFAULT, 0);
+    lv_obj_add_style(bar1, LV_OBJ_PART_MAIN, style);
+    lv_obj_add_style(bar2, LV_OBJ_PART_MAIN, style);
+    lv_obj_add_style(bar3, LV_OBJ_PART_MAIN, style);
+    lv_obj_add_style(bar4, LV_OBJ_PART_MAIN, style);
+
+    lv_anim_t a1_y;
+    lv_anim_init(&a1_y);
+    lv_anim_set_var(&a1_y, bar1);
+    lv_anim_set_exec_cb(&a1_y, set_rainbow_y);
+    lv_anim_set_values(&a1_y, y_offset, y_offset + 10);
+    lv_anim_set_time(&a1_y, 300);
+    lv_anim_set_playback_time(&a1_y, 300);
+    lv_anim_set_repeat_count(&a1_y, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&a1_y);
+
+    lv_anim_t a2_y;
+    lv_anim_init(&a2_y);
+    lv_anim_set_var(&a2_y, bar2);
+    lv_anim_set_exec_cb(&a2_y, set_rainbow_y);
+    lv_anim_set_values(&a2_y, y_offset-5, y_offset + 15);
+    lv_anim_set_time(&a2_y, 300);
+    lv_anim_set_playback_time(&a2_y, 300);
+    lv_anim_set_repeat_count(&a2_y, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&a2_y);
+
+    lv_anim_t a3_y;
+    lv_anim_init(&a3_y);
+    lv_anim_set_var(&a3_y, bar3);
+    lv_anim_set_exec_cb(&a3_y, set_rainbow_y);
+    lv_anim_set_values(&a3_y, y_offset, y_offset + 10);
+    lv_anim_set_time(&a3_y, 300);
+    lv_anim_set_playback_time(&a3_y, 300);
+    lv_anim_set_repeat_count(&a3_y, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&a3_y);
+
+    lv_anim_t a4_y;
+    lv_anim_init(&a4_y);
+    lv_anim_set_var(&a4_y, bar4);
+    lv_anim_set_exec_cb(&a4_y, (lv_anim_exec_xcb_t)set_rainbow_y);
+    lv_anim_set_values(&a4_y, y_offset-5, y_offset + 15);
+    lv_anim_set_time(&a4_y, 300);
+    lv_anim_set_playback_time(&a4_y, 300);
+    lv_anim_set_repeat_count(&a4_y, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&a4_y);
+}
+
+
+void create_star(lv_obj_t *parent, int x_offset, int y_offset, int index) {
+    lv_obj_t *star = lv_img_create(parent, NULL);
+    lv_img_set_src(star, &nyan_star_sprite);
+    lv_obj_set_size(star, 32, 32); // finestra di visualizzazione
+    lv_img_set_offset_x(star, 0);
+    lv_img_set_offset_y(star, 0);
+    lv_obj_align(star, NULL, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_pos(star, x_offset, y_offset);
+
+    lv_anim_t s;
+    lv_anim_init(&s);
+    lv_anim_set_var(&s, star);
+    lv_anim_set_exec_cb(&s, anim_star_cb);
+    lv_anim_set_values(&s, 0, 3);
+    lv_anim_set_time(&s, 900);
+    lv_anim_set_repeat_count(&s, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_set_repeat_delay(&s, 1000*index);
+    lv_anim_start(&s);
+    
+}
+
+void create_cat(lv_obj_t *parent) {
+    lv_obj_t *img = lv_img_create(parent, NULL);
+    lv_img_set_src(img, &saiyancat_only);
+    lv_obj_set_pos(img, 140, 45);
+
+
+    static lv_style_t style_paw;
+    lv_style_init(&style_paw);
+    lv_style_set_bg_opa(&style_paw, LV_STATE_DEFAULT, LV_OPA_COVER);
+    lv_style_set_bg_color(&style_paw, LV_STATE_DEFAULT, LV_COLOR_MAKE(0x80, 0x80, 0x80));
+
+    lv_obj_t *paw = lv_obj_create(parent, NULL);
+    lv_obj_set_size(paw, 10, 10);
+    lv_obj_set_pos(paw, 140+30, 123+45);
+    lv_style_set_bg_color(&style_paw, LV_STATE_DEFAULT, LV_COLOR_GRAY);
+    lv_style_set_border_color(&style_paw, LV_STATE_DEFAULT, LV_COLOR_BLACK);
+
+    lv_obj_add_style(paw, LV_OBJ_PART_MAIN, &style_paw);
+
+
+    lv_obj_t *paw2 = lv_obj_create(parent, NULL);
+    lv_obj_set_size(paw2, 10, 10);
+    lv_obj_set_pos(paw2, 140+90, 123+45);
+    lv_style_set_bg_color(&style_paw, LV_STATE_DEFAULT, LV_COLOR_GRAY);
+    lv_obj_add_style(paw2, LV_OBJ_PART_MAIN, &style_paw);
+
+
+    lv_anim_t a_y;
+    lv_anim_init(&a_y);
+    lv_anim_set_var(&a_y, img);
+    lv_anim_set_exec_cb(&a_y, (lv_anim_exec_xcb_t)lv_obj_set_y);
+    lv_anim_set_values(&a_y, 42, 46); // oscillazione di 3 px
+    lv_anim_set_time(&a_y, 300);
+    lv_anim_set_playback_time(&a_y, 300);
+    lv_anim_set_repeat_count(&a_y, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&a_y);
+ 
+    lv_anim_t a_x;
+    lv_anim_init(&a_x);
+    lv_anim_set_var(&a_x, img);
+    lv_anim_set_exec_cb(&a_x, (lv_anim_exec_xcb_t)lv_obj_set_x);
+    lv_anim_set_values(&a_x, 138, 142); // scorrimento di 100 px
+    lv_anim_set_time(&a_x, 300);
+    lv_anim_set_repeat_count(&a_x, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&a_x);
+ 
+    lv_anim_t p1_x;
+    lv_anim_init(&p1_x);
+    lv_anim_set_var(&p1_x, paw);
+    lv_anim_set_exec_cb(&p1_x, (lv_anim_exec_xcb_t)lv_obj_set_x);
+    lv_anim_set_values(&p1_x, 140+30, 140+34);
+    lv_anim_set_time(&p1_x, 300);
+    lv_anim_set_repeat_count(&p1_x, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&p1_x);
+
+    lv_anim_t p2_x;
+    lv_anim_init(&p2_x);
+    lv_anim_set_var(&p2_x, paw2);
+    lv_anim_set_exec_cb(&p2_x, (lv_anim_exec_xcb_t)lv_obj_set_x);
+    lv_anim_set_values(&p2_x, 140+90, 140+94);
+    lv_anim_set_time(&p2_x, 300);
+    lv_anim_set_repeat_count(&p2_x, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&p2_x);
+
+
+    lv_anim_t p1_y;
+    lv_anim_init(&p1_y);
+    lv_anim_set_var(&p1_y, paw);
+    lv_anim_set_exec_cb(&p1_y, (lv_anim_exec_xcb_t)lv_obj_set_y);
+    lv_anim_set_values(&p1_y, 123+38, 123+41);
+    lv_anim_set_time(&p1_y, 300);
+    lv_anim_set_repeat_count(&p1_y, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&p1_y);
+
+    lv_anim_t p2_y;
+    lv_anim_init(&p2_y);
+    lv_anim_set_var(&p2_y, paw2);
+    lv_anim_set_exec_cb(&p2_y, (lv_anim_exec_xcb_t)lv_obj_set_y);
+    lv_anim_set_values(&p2_y, 123+38, 123+41);
+    lv_anim_set_time(&p2_y, 300);
+    lv_anim_set_repeat_count(&p2_y, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&p2_y);
+
+
+
+    tail = lv_img_create(parent, NULL);
+    lv_img_set_src(tail, &saiyan_tail_sprite);
+    lv_obj_set_size(tail, 27, 32); // finestra di visualizzazione
+    lv_img_set_offset_x(tail, 0);
+    lv_img_set_offset_y(tail, 0);
+    lv_obj_align(tail, NULL, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_pos(tail, 140-27, 123);
+
+    lv_anim_t t;
+    lv_anim_init(&t);
+    lv_anim_set_var(&t, tail);
+    lv_anim_set_exec_cb(&t, anim_tail_cb);
+    lv_anim_set_values(&t, 0, 3);
+    lv_anim_set_time(&t, 400);
+    lv_anim_set_repeat_count(&t, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&t);
+
+    lv_anim_t t_x;
+    lv_anim_init(&t_x);
+    lv_anim_set_var(&t_x, tail);
+    lv_anim_set_exec_cb(&t_x, (lv_anim_exec_xcb_t)lv_obj_set_x);
+    lv_anim_set_values(&t_x, 138-27, 142-27);
+    lv_anim_set_time(&t_x, 300);
+    lv_anim_set_repeat_count(&t_x, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&t_x);
+
+    
+}
+
+void ui_screen_saiyancat_init() {
+    lv_obj_t *scr = lv_obj_create(NULL, NULL);
+    lv_obj_clean(scr);
+
+    static lv_style_t style_bg;
+    lv_style_init(&style_bg);
+    lv_style_set_bg_opa(&style_bg, LV_STATE_DEFAULT, LV_OPA_COVER);
+    lv_style_set_bg_color(&style_bg, LV_STATE_DEFAULT, LV_COLOR_MAKE(0x00, 0x33, 0x66));
+    lv_obj_add_style(scr, LV_OBJ_PART_MAIN, &style_bg);
+
+
+    create_rainbow_bar(scr, LV_COLOR_RED,    50+42);
+    create_rainbow_bar(scr, LV_COLOR_ORANGE, 60+42);
+    create_rainbow_bar(scr, LV_COLOR_YELLOW, 70+42);
+    create_rainbow_bar(scr, LV_COLOR_GREEN,  80+42);
+    create_rainbow_bar(scr, LV_COLOR_BLUE,   90+42);
+    create_rainbow_bar(scr, LV_COLOR_PURPLE, 100+42);
+    create_cat(scr);
+    create_star(scr, 50, 32,1);
+    create_star(scr, 38, 190,2);
+    create_star(scr, 240, 190,3);
+    create_star(scr, 160, 205,4);
+    create_star(scr, 160, 10,5);
+    create_star(scr, 250, 35,6);
+
+    screens[SCREEN_NYAN] = scr;
 }
 
 void ui_screen_radar_init(){
@@ -802,6 +1062,8 @@ static void ui_init(void)
     ui_screen_admin_init();
 
     ui_screen_snake_init();
+
+    ui_screen_saiyancat_init();
     
     radar_task_handle = lv_task_create(ui_radar_task, 2000, LV_TASK_PRIO_OFF, NULL);
     rssi_task_handle = lv_task_create(ui_rssi_task, 2000, LV_TASK_PRIO_OFF, NULL);
