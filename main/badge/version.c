@@ -1,3 +1,3 @@
-const char* GIT_REV="6a41ecb+";
-const char* GIT_TAG="v1.0.0.0";
-const char* GIT_BRANCH="main";
+const char* GIT_REV="d02de69+";
+const char* GIT_TAG="";
+const char* GIT_BRANCH="ctf";

@@ -25,5 +25,6 @@ bool start_wifi_apsta(void);
 void stop_wifi(void);
 
 void wifi_task(void *);
+void obtain_time(void);
 
 #endif

