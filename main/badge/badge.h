@@ -50,6 +50,7 @@ typedef struct
     char sta_ssid[BADGE_BUF_SIZE];
     char sta_password[BADGE_BUF_SIZE];
     char sync_path[BADGE_BUF_SIZE];
+    char ntp_server[BADGE_BUF_SIZE];
 
     // Display brightness settings
     uint8_t brightness_max;
@@ -77,7 +78,9 @@ enum enum_badge_event
     EVENT_STA_START,
     EVENT_STA_STOP,
     EVENT_SYNC_START,
-    EVENT_SYNC_STOP
+    EVENT_SYNC_STOP,
+    EVENT_APSTA_START,
+    EVENT_APSTA_STOP,
 };
 
 extern QueueHandle_t wifi_queue;

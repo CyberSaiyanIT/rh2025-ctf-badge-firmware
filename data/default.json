@@ -1,6 +1,7 @@
 {
     "badge": {
-        "name": ""
+        "name": "",
+        "ntp_server": "pool.ntp.org"
     },
     "web": {
         "login": "saiyan"
@@ -14,7 +15,7 @@
         "password": ""
     },
     "sync": {
-        "path": "a/why2025"
+        "path": "a/romhack2025"
     },
     "display": {
         "brightness_max": 205,

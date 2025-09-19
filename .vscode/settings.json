@@ -30,6 +30,15 @@
         "led.h": "c",
         "stdint.h": "c",
         "semphr.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "badge.h": "c",
+        "ui.h": "c",
+        "i2c.h": "c",
+        "freertos.h": "c",
+        "task.h": "c",
+        "lvgl.h": "c",
+        "esp_sntp.h": "c",
+        "esp_cpu.h": "c",
+        "bt_hci_common.h": "c"
     }
 }

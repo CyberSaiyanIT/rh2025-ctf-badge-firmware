@@ -422,6 +422,89 @@ static esp_err_t wifi_handler(httpd_req_t *req, const char *client_data)
     return err;
 }
 
+static esp_err_t wifi_client_handler(httpd_req_t *req, const char *client_data)
+{
+    httpd_resp_set_type(req, "application/json");
+
+    cJSON *response = cJSON_CreateObject();
+    cJSON *client_json = cJSON_Parse(client_data);
+
+    esp_err_t err;
+    if (check_session(req, client_data))
+    {
+        cJSON *wifi = cJSON_GetObjectItem(client_json, "wifi_client");
+        if (cJSON_IsObject(wifi))
+        {
+            cJSON *ssid = cJSON_GetObjectItem(wifi, "ssid");
+            cJSON *password = cJSON_GetObjectItem(wifi, "password");
+
+            if (cJSON_IsString(ssid) && (ssid->valuestring != NULL) && (strlen(ssid->valuestring) > 0))
+            {
+                badge_obj.update(5, ssid->valuestring);
+            }
+            else if (cJSON_IsString(password) && (password->valuestring != NULL) && (strlen(password->valuestring) > 0))
+            {
+                badge_obj.update(6, password->valuestring);
+            }
+        }
+
+        cJSON *wifi_obj = cJSON_CreateObject();
+        cJSON_AddStringToObject(wifi_obj, "ssid", badge_obj.sta_ssid);
+        cJSON_AddStringToObject(wifi_obj, "password", badge_obj.sta_password);
+        cJSON_AddItemToObject(response, "wifi_client", wifi_obj);
+
+        char *response_str = cJSON_PrintUnformatted(response);
+
+        err = rest_send_response(req, response_str);
+
+        cJSON_free((void *)response_str);
+    }
+    else
+    {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed on wifi_client_handler() function");
+        err = ESP_FAIL;
+    }
+
+    cJSON_Delete(response);
+    cJSON_Delete(client_json);
+
+    return err;
+}
+
+static esp_err_t ntp_server_handler(httpd_req_t *req, const char *client_data)
+{
+    httpd_resp_set_type(req, "application/json");
+    ;
+
+    cJSON *response = cJSON_CreateObject();
+
+    cJSON *client_json = cJSON_Parse(client_data);
+
+    esp_err_t err;
+
+    if (check_session(req, client_data))
+    {
+        cJSON *ntp_server = cJSON_GetObjectItem(client_json, "ntp_server");
+        if (cJSON_IsString(ntp_server) && (ntp_server->valuestring != NULL) && (strlen(ntp_server->valuestring) > 0))
+        {
+            badge_obj.update(7, ntp_server->valuestring);
+        }
+        cJSON_AddStringToObject(response, "ntp_server", badge_obj.ntp_server);
+        char *response_str = cJSON_PrintUnformatted(response);
+        err = rest_send_response(req, response_str);
+        cJSON_free((void *)response_str);
+    }
+    else
+    {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed on ntp_server_handler() function");
+        err = ESP_FAIL;
+    }
+    cJSON_Delete(response);
+    cJSON_Delete(client_json);
+
+    return err;
+}
+
 static esp_err_t password_handler(httpd_req_t *req, const char *client_data)
 {
     httpd_resp_set_type(req, "application/json");
@@ -493,6 +576,22 @@ static esp_err_t reset_handler(httpd_req_t *req, const char *client_data)
     return err;
 }
 
+esp_err_t _post_score_event_handler(esp_http_client_event_t *evt)
+{
+    switch (evt->event_id)
+    {
+    case HTTP_EVENT_ON_DATA:
+        if (!esp_http_client_is_chunked_response(evt->client))
+        {
+            ESP_LOGI("http_client_tetris", "received: %.*s", evt->data_len, (char *)evt->data);
+        }
+        break;
+    default:
+        break;
+    }
+    return ESP_OK;
+}
+
 static esp_err_t tetris_result_handler(httpd_req_t *req, const char *client_data)
 {
     httpd_resp_set_type(req, "application/json");
@@ -535,8 +634,20 @@ static esp_err_t tetris_result_handler(httpd_req_t *req, const char *client_data
             }
             printf("\n");
         }
-        free(decoded);
-        cJSON_AddStringToObject(response, "status", "ok");
+        else
+        {
+            free((void *)decoded);
+            cJSON_AddStringToObject(response, "status", "decoding_error");
+            char *response_str = cJSON_PrintUnformatted(response);
+            rest_send_response(req, response_str);
+            cJSON_free((void *)response_str);
+            cJSON_Delete(response);
+            cJSON_Delete(client_json);
+            return ESP_FAIL;
+        }
+
+        err = post_score_event((char *)decoded, out_len, points);
+        cJSON_AddStringToObject(response, "status", err == ESP_OK ? "ok" : "error in POST");
         char *response_str = cJSON_PrintUnformatted(response);
         err = rest_send_response(req, response_str);
         cJSON_free((void *)response_str);
@@ -549,6 +660,64 @@ static esp_err_t tetris_result_handler(httpd_req_t *req, const char *client_data
 
     cJSON_Delete(response);
     cJSON_Delete(client_json);
+    return err;
+}
+
+esp_err_t post_score_event(const char *decoded, size_t decoded_len, cJSON *points)
+{
+    cJSON *req = cJSON_CreateObject();
+
+    size_t enc_len = 0;
+    // get required length
+    mbedtls_base64_encode(NULL, 0, &enc_len, (const unsigned char *)decoded, decoded_len);
+    char *user_b64 = malloc(enc_len + 1);
+    if (user_b64)
+    {
+        if (mbedtls_base64_encode((unsigned char *)user_b64, enc_len, &enc_len, (const unsigned char *)decoded, decoded_len) == 0)
+        {
+            user_b64[enc_len] = '\0';
+            cJSON_AddStringToObject(req, "user", user_b64);
+        }
+        else
+        {
+            // fallback: empty string
+            cJSON_AddStringToObject(req, "user", "");
+        }
+    }
+    else
+    {
+        cJSON_AddStringToObject(req, "user", "");
+    }
+    cJSON_AddNumberToObject(req, "points", points->valueint);
+
+    // char *post_data = cJSON_PrintUnformatted(req);
+    char *post_data = cJSON_Print(req);
+
+    esp_http_client_config_t client_conf = {
+        .url = "http://tetris.cybersaiyan.it/",
+        .event_handler = _post_score_event_handler,
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&client_conf);
+    esp_http_client_set_method(client, HTTP_METHOD_POST);
+    esp_http_client_set_header(client, "Content-Type", "application/json");
+    esp_http_client_set_post_field(client, post_data, strlen(post_data));
+    esp_err_t err = esp_http_client_perform(client);
+    if (err == ESP_OK)
+    {
+        ESP_LOGI(__FILE__, "HTTP POST Status = %d, content_length = %d",
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    }
+    else
+    {
+        ESP_LOGE(__FILE__, "HTTP POST request failed: %s", esp_err_to_name(err));
+    }
+    esp_http_client_cleanup(client);
+    cJSON_free(post_data);
+    cJSON_Delete(req);
+    if (user_b64)
+        free(user_b64);
+    free((void *)decoded);
     return err;
 }
 
@@ -613,6 +782,14 @@ static esp_err_t post_handler(httpd_req_t *req)
     else if (is_string_match(cmd, "wifi"))
     {
         wifi_handler(req, buf);
+    }
+    else if (is_string_match(cmd, "wifi_client"))
+    {
+        wifi_client_handler(req, buf);
+    }
+    else if (is_string_match(cmd, "ntp_server"))
+    {
+        ntp_server_handler(req, buf);
     }
     else if (is_string_match(cmd, "password"))
     {

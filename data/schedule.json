@@ -1,86 +1,122 @@
 {
-  "info": "CjxwPldlbGNvbWUgdG8gQ3liZXIgU2FpeWFuIFZpbGxhZ2UhIEVuam95IGFuZCBiZSByZXNwZWN0ZnVsIHRvIGVhY2ggb3RoZXI8L3A+CgoKCjxwPjwvcD4KCg==",
-  "schedule": [
-    {
-      "sort"   : "1001",
-      "title"   : "Lab: Battle of Saiyan",
-      "day"     : "1 to 3"             ,
-      "hour"    : "all day"          ,
-      "speaker" : "SkullB0y",
-      "location": "Cyber Saiyan Village"            ,
-      "duration": ""
-    },
-    {
-      "sort"   : "1002",
-      "title": "Hardware: Cyber Saiyan Badge for WHY2025",
-      "day": "1 to 3",
-      "hour": "all day",
-      "speaker": "Cyber Saiyan Team",
-      "location": "Cyber Saiyan Village",
-      "duration": ""
-    },
-    {
-      "sort": "1003",
-      "title": "Talk: My journey into cloud security",
-      "day": "1",
-      "hour": "18:00",
-      "speaker": "Merlos",
-      "location": "Cassiopeia",
-      "duration": "50 min"
-    },
-    {
-      "sort": "1004",
-      "title": "Talk: The shadow of Operational technologies: A journey into the OT security",
-      "day": "2",
-      "hour": "15:00",
-      "speaker": "SkullB0y",
-      "location": "Delphinus",
-      "duration": "50 min"
-    },
-    {
-      "sort": "1005",
-      "title": "Talk: Summoning Shenron: Building the Cyber Saiyan Badge",
-      "day": "2",
-      "hour": "16:00",
-      "speaker": "Dariomas, Merlos",
-      "location": "Cassiopeia",
-      "duration": "50 min"
-    },
-    {
-      "sort": "1006",
-      "title": "Food: Pasta all'Amatriciana",
-      "day": "2",
-      "hour": "20:00",
-      "speaker": "Cyber Saiyan Team",
-      "location": "Milliways Village",
-      "duration": ""
-    },
-    {
-      "sort": "1007",      
-      "title": "Contest: Best Badge Hack",
-      "day": "3",
-      "hour": "16:00",
-      "speaker": "Cyber Saiyan Badge Team",
-      "location": "Cyber Saiyan Village",
-      "duration": "1h"
-    },
-    {
-      "sort": "1008",
-      "title": "Talk: Python3-based editors in Burp Suite",
-      "day": "3",
-      "hour": "17:00",
-      "speaker": "Nico",
-      "location": "Cyber Saiyan Village",
-      "duration": "15 min"
-    },
-    {
-      "sort": "1009",
-      "title": "Music: Electronic music live set",
-      "day": "TBD",
-      "hour": "TBD",
-      "speaker": "Chrome",
-      "location": "Dome, Milliways Village",
-      "duration": ""
-    }
-  ]
+    "info": "PHA+QmFkZ2UgaXMgY29ubmVjdGVkIHRvIGludGVybmV0LiBXZWxjb21lIHRvIFJvbUhhY2sgMjAyNSEgRW5qb3kgYW5kIGJlIHJlc3BlY3RmdWwgdG8gZWFjaCBvdGhlciEgV2luIHRoZSBDVEYgYW5kIGpvaW4gdXMgYXQgUm9tSGFjayBDYW1wIDIwMjYgOi0pPC9wPgo=",
+    "schedule": [
+        {
+            "day": "-",
+            "duration": "All day",
+            "hour": "10:00 -",
+            "location": "Live Hacking Room",
+            "sort": "999",
+            "speaker": "Unguess Security and Cyber Saiyan",
+            "title": "Live Hacking Event"
+        },
+        {
+            "day": "-",
+            "duration": "Until three winners are found",
+            "hour": "-",
+            "location": "-",
+            "sort": "998",
+            "speaker": "-",
+            "title": "RomHack CTF 2025"
+        },
+        {
+            "day": "-",
+            "duration": "15 min",
+            "hour": "10:00 - 10:15",
+            "location": "Conference Room",
+            "sort": "1000",
+            "speaker": "Carola Frediani, Gerardo di Giacomo and Cyber Saiyan",
+            "title": "Welcome and Opening Remarks"
+        },
+        {
+            "day": "-",
+            "duration": "50 min",
+            "hour": "10:15 - 11:05",
+            "location": "Conference Room",
+            "sort": "1020",
+            "speaker": "James \"albinowax\" Kettle",
+            "title": "HTTP/1.1 Must Die! The Desync Endgame"
+        },
+        {
+            "day": "-",
+            "duration": "50 min",
+            "hour": "11:05 - 11:55",
+            "location": "Conference Room",
+            "sort": "1030",
+            "speaker": "Denis Nagayuk (diversenok)",
+            "title": "Attacking Assumptions Behind the Image Load Callbacks"
+        },
+        {
+            "day": "-",
+            "duration": "50 min",
+            "hour": "11:55 - 12:45",
+            "location": "Conference Room",
+            "sort": "1040",
+            "speaker": "Leon Jacobs",
+            "title": "7 Vulns in 7 Days: Breaking Bloatware Faster Than It’s Built"
+        },
+        {
+            "day": "-",
+            "duration": "2 hours",
+            "hour": "12:45 - 14:45",
+            "location": "Bar at the venue, restaurants of your choice nearby",
+            "sort": "1050",
+            "speaker": "~",
+            "title": "Lunch Break"
+        },
+        {
+            "day": "-",
+            "duration": "50 min",
+            "hour": "14:45 - 15:35",
+            "location": "Conference Room",
+            "sort": "1060",
+            "speaker": "Philippe Caturegli",
+            "title": "Internal Domain Name Collision 2.0"
+        },
+        {
+            "day": "-",
+            "duration": "50 min",
+            "hour": "15:35 - 16:25",
+            "location": "Conference Room",
+            "sort": "1070",
+            "speaker": "Shang-De \"John\" Jiang & Kazma Ye",
+            "title": "Sign Here to Bypass: From macOS Intune PRT Cookie Theft to Entra ID Persistence"
+        },
+        {
+            "day": "-",
+            "duration": "50 min",
+            "hour": "16:25 - 17:15",
+            "location": "Conference Room",
+            "sort": "1080",
+            "speaker": "Dr Nestori Syynimaa",
+            "title": "The Ultimate Guide for Protecting Hybrid Identities in Entra ID"
+        },
+        {
+            "day": "-",
+            "duration": "50 min",
+            "hour": "17:15 - 18:05",
+            "location": "Conference Room",
+            "sort": "1080",
+            "speaker": "Yuval Gordon",
+            "title": "The (Un)Rightful Heir: My dMSA Is Your New Domain Admin"
+        },
+        {
+            "day": "-",
+            "duration": "10 min",
+            "hour": "18:05 - 18:15",
+            "location": "Conference Room",
+            "sort": "1090",
+            "speaker": "Carola Frediani, Gerardo di Giacomo and Cyber Saiyan",
+            "title": "Closing Remarks"
+        },
+        {
+            "day": "-",
+            "duration": "",
+            "hour": "19:00",
+            "location": "Salone delle Fontane",
+            "sort": "1100",
+            "speaker": "",
+            "title": "After conference party"
+        }
+    ]
 }

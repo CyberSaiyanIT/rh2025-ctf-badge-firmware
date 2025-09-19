@@ -35,10 +35,12 @@ static uint32_t last_trigger = -1;
 static lv_obj_t *radar_node[MAX_NEARBY_NODE] = {0};
 static lv_obj_t *radar_node_number[MAX_NEARBY_NODE] = {0};
 static lv_obj_t *table_rssi, *table_event;
-static lv_obj_t *admin_switch, *admin_switch_sta, *admin_sync;
-static lv_obj_t *admin_switch_text, *admin_switch_sta_text, *admin_sync_text;
-static lv_obj_t *admin_ssid, *admin_pass;
-static lv_obj_t *admin_client_ip, *admin_gateway_ip;
+
+// Admin screen
+static lv_obj_t *hotspot_switch, *sta_switch;
+static lv_obj_t *hotspot_switch_text, *sta_switch_text;
+static lv_obj_t *hotspot_ssid, *hotspot_ip;
+static lv_obj_t *sta_client_ip, *sta_gateway_ip;
 
 static bool ap_started = false;
 static bool sta_connected = false;
@@ -223,22 +225,33 @@ void ui_button_up()
     case SCREEN_ADMIN:
         switch (admin_state)
         {
-        case ADMIN_STATE_OFF: // AP and STA disabled: enable AP
+        case ADMIN_STATE_OFF:
+            // AP and STA disabled: enable AP
+            ESP_LOGI("UI", "Enabling AP mode (UP button in OFF mode)");
             ui_send_wifi_event(EVENT_HOTSPOT_START);
-            lv_obj_set_hidden(admin_switch_sta, true);
             admin_state = ADMIN_STATE_AP;
+            // ui_update_ip_info();
             break;
-        case ADMIN_STATE_AP: // AP enabled: disable AP
+        case ADMIN_STATE_AP:
+            // AP enabled: disable AP
+            ESP_LOGI("UI", "Disabling AP mode (UP button in AP mode)");
             ui_send_wifi_event(EVENT_HOTSPOT_STOP);
-            lv_obj_set_hidden(admin_switch_sta, false);
-            lv_obj_set_hidden(admin_ssid, true);
             admin_state = ADMIN_STATE_OFF;
+            // ui_update_ip_info();
             break;
-        case ADMIN_STATE_STA: // STA connected: manual IP refresh
-            ESP_LOGI("UI", "Manual IP refresh triggered via UP button");
-            ui_manual_ip_update();
+        case ADMIN_STATE_STA:
+            // STA connected: enable STA and AP
+            ESP_LOGI("UI", "Enabling AP mode (UP button in STA mode)");
+            ui_send_wifi_event(EVENT_HOTSPOT_START);
+            admin_state = ADMIN_STATE_APSTA;
             // Also test forcing labels to be visible for debugging
-            ui_force_show_ip_labels();
+            // ui_update_ip_info();
+            break;
+        case ADMIN_STATE_APSTA:
+            ESP_LOGI("UI", "Disabling AP mode (UP button in APSTA mode)");
+            ui_send_wifi_event(EVENT_HOTSPOT_STOP);
+            admin_state = ADMIN_STATE_STA;
+            // ui_update_ip_info();
             break;
         }
         break;
@@ -298,18 +311,29 @@ void ui_button_down()
     case SCREEN_ADMIN:
         switch (admin_state)
         {
-        case ADMIN_STATE_OFF: // AP and STA disabled: enable STA
+        case ADMIN_STATE_OFF:
+            // AP and STA disabled: enable STA
+            ESP_LOGI("UI", "Enabling STA mode (DOWN button in OFF mode)");
             ui_send_wifi_event(EVENT_STA_START);
-            lv_label_set_text(admin_switch_sta_text, "Started...");
             admin_state = ADMIN_STATE_STA;
+            ui_update_ip_info();
             break;
         case ADMIN_STATE_AP: // AP enabled: test showing IP labels
-            ESP_LOGI("UI", "Force show IP labels test (DOWN button in AP mode)");
-            ui_force_show_ip_labels();
+            ESP_LOGI("UI", "Enabling APSTA mode (DOWN button in AP mode)");
+            ui_send_wifi_event(EVENT_STA_START);
+            admin_state = ADMIN_STATE_APSTA;
+            ui_update_ip_info();
             break;
         case ADMIN_STATE_STA: // STA mode: test showing IP labels
             ESP_LOGI("UI", "Force show IP labels test (DOWN button in STA mode)");
-            ui_force_show_ip_labels();
+            ui_send_wifi_event(EVENT_STA_STOP);
+            admin_state = ADMIN_STATE_OFF;
+            ui_update_ip_info();
+            break;
+        case ADMIN_STATE_APSTA:
+            ui_send_wifi_event(EVENT_STA_STOP);
+            admin_state = ADMIN_STATE_AP;
+            ui_update_ip_info();
             break;
         }
         break;
@@ -554,17 +578,17 @@ void ui_screen_event_init()
 
 void ui_screen_splash_init()
 {
-    LV_IMG_DECLARE(img_logo);
+    LV_IMG_DECLARE(romhack);
 
     screen_logo = lv_obj_create(NULL, NULL);
     lv_obj_t *logo = lv_img_create(screen_logo, NULL);
-    lv_img_set_src(logo, &img_logo);
+    lv_img_set_src(logo, &romhack);
     lv_obj_align(logo, NULL, LV_ALIGN_CENTER, 0, 0);
     /*Change the logo's background color*/
     static lv_style_t style;
     lv_style_init(&style);
     lv_style_set_bg_opa(&style, LV_STATE_DEFAULT, LV_OPA_COVER);
-    lv_style_set_bg_color(&style, LV_STATE_DEFAULT, LV_COLOR_MAKE(0x34, 0x3a, 0x40));
+    lv_style_set_bg_color(&style, LV_STATE_DEFAULT, LV_COLOR_MAKE(0xe8, 0x0b, 0x60));
     lv_obj_add_style(logo, LV_OBJ_PART_MAIN, &style);
 
     screens[SCREEN_LOGO] = screen_logo;
@@ -1047,50 +1071,44 @@ void ui_screen_admin_init()
 
     static lv_style_t style2;
     lv_style_init(&style2);
-    lv_style_set_text_font(&style2, LV_OBJ_PART_MAIN, &lv_font_montserrat_12);
+    lv_style_set_text_font(&style2, LV_OBJ_PART_MAIN, &lv_font_montserrat_10);
 
     screen_admin = lv_obj_create(NULL, NULL);
-    admin_switch = lv_btn_create(screen_admin, NULL);
-    lv_obj_set_size(admin_switch, 200, 50);
-    lv_obj_set_pos(admin_switch, 60, 35);
-    admin_switch_text = lv_label_create(admin_switch, NULL);
-    lv_label_set_text(admin_switch_text, "TURN ON AP");
-    lv_obj_add_style(admin_switch_text, LV_LABEL_PART_MAIN, &style);
+    hotspot_switch = lv_btn_create(screen_admin, NULL);
+    lv_obj_set_size(hotspot_switch, 200, 50);
+    lv_obj_set_pos(hotspot_switch, 60, 35);
+    hotspot_switch_text = lv_label_create(hotspot_switch, NULL);
+    lv_label_set_text(hotspot_switch_text, "TURN ON AP");
+    lv_obj_add_style(hotspot_switch_text, LV_LABEL_PART_MAIN, &style);
 
-    admin_sync = lv_btn_create(screen_admin, NULL);
-    lv_obj_set_size(admin_sync, 200, 50);
-    lv_obj_set_pos(admin_sync, 60, 180);
-    admin_sync_text = lv_label_create(admin_sync, NULL);
-    lv_label_set_text(admin_sync_text, "FORCE SCHEDULE SYNC");
-    lv_obj_add_style(admin_sync_text, LV_LABEL_PART_MAIN, &style);
-    lv_obj_set_hidden(admin_sync, true);
+    // These are to be shown when AP is on . Starting hidden
+    hotspot_ssid = lv_label_create(screen_admin, NULL);
+    lv_obj_align(hotspot_ssid, hotspot_switch, LV_ALIGN_OUT_BOTTOM_MID, -50, 10);
+    lv_obj_set_hidden(hotspot_ssid, true);
+    lv_obj_add_style(hotspot_ssid, LV_LABEL_PART_MAIN, &style2);
+    hotspot_ip = lv_label_create(screen_admin, NULL);
+    lv_obj_align(hotspot_ip, hotspot_switch, LV_ALIGN_OUT_BOTTOM_MID, -50, 26);
+    lv_obj_set_hidden(hotspot_ip, true);
+    lv_obj_add_style(hotspot_ip, LV_LABEL_PART_MAIN, &style2);
 
-    admin_ssid = lv_label_create(screen_admin, NULL);
-    lv_obj_align(admin_ssid, admin_switch, LV_ALIGN_OUT_BOTTOM_MID, -50, 10);
-    lv_obj_set_hidden(admin_ssid, true);
-    lv_obj_add_style(admin_ssid, LV_LABEL_PART_MAIN, &style2);
-    admin_pass = lv_label_create(screen_admin, NULL);
-    lv_obj_align(admin_pass, admin_switch, LV_ALIGN_OUT_BOTTOM_MID, -50, 30);
-    lv_obj_set_hidden(admin_pass, true);
-    lv_obj_add_style(admin_pass, LV_LABEL_PART_MAIN, &style2);
+    // These are to be shown when STA is on. Starting hidden.
+    sta_client_ip = lv_label_create(screen_admin, NULL);
+    lv_obj_align(sta_client_ip, hotspot_switch, LV_ALIGN_OUT_BOTTOM_MID, -50, 42);
+    lv_label_set_text(sta_client_ip, "Client IP: [Not Connected]");
+    lv_obj_set_hidden(sta_client_ip, true);
+    lv_obj_add_style(sta_client_ip, LV_LABEL_PART_MAIN, &style2);
+    sta_gateway_ip = lv_label_create(screen_admin, NULL);
+    lv_obj_align(sta_gateway_ip, hotspot_switch, LV_ALIGN_OUT_BOTTOM_MID, -50, 58);
+    lv_label_set_text(sta_gateway_ip, "Gateway: [Not Available]");
+    lv_obj_set_hidden(sta_gateway_ip, true);
+    lv_obj_add_style(sta_gateway_ip, LV_LABEL_PART_MAIN, &style2);
 
-    admin_client_ip = lv_label_create(screen_admin, NULL);
-    lv_obj_align(admin_client_ip, admin_switch, LV_ALIGN_OUT_BOTTOM_MID, -50, 50);
-    lv_label_set_text(admin_client_ip, "Client IP: [Not Connected]");
-    lv_obj_set_hidden(admin_client_ip, true);
-    lv_obj_add_style(admin_client_ip, LV_LABEL_PART_MAIN, &style2);
-    admin_gateway_ip = lv_label_create(screen_admin, NULL);
-    lv_obj_align(admin_gateway_ip, admin_switch, LV_ALIGN_OUT_BOTTOM_MID, -50, 70);
-    lv_label_set_text(admin_gateway_ip, "Gateway: [Not Available]");
-    lv_obj_set_hidden(admin_gateway_ip, true);
-    lv_obj_add_style(admin_gateway_ip, LV_LABEL_PART_MAIN, &style2);
-
-    admin_switch_sta = lv_btn_create(screen_admin, NULL);
-    lv_obj_set_size(admin_switch_sta, 200, 50);
-    lv_obj_set_pos(admin_switch_sta, 60, 180);
-    admin_switch_sta_text = lv_label_create(admin_switch_sta, NULL);
-    lv_label_set_text(admin_switch_sta_text, "SYNC SCHEDULE");
-    lv_obj_add_style(admin_switch_sta_text, LV_LABEL_PART_MAIN, &style);
+    sta_switch = lv_btn_create(screen_admin, NULL);
+    lv_obj_set_size(sta_switch, 200, 50);
+    lv_obj_set_pos(sta_switch, 60, 180);
+    sta_switch_text = lv_label_create(sta_switch, NULL);
+    lv_label_set_text(sta_switch_text, "CONNECT TO INTERNET");
+    lv_obj_add_style(sta_switch_text, LV_LABEL_PART_MAIN, &style);
 
     screens[SCREEN_ADMIN] = screen_admin;
 }
@@ -1109,24 +1127,17 @@ void ui_ap_start_handler()
     ap_started = true;
 
     ESP_LOGI("UI", "AP started handler called");
-    lv_label_set_text(admin_switch_text, "TURN OFF AP");
+    lv_label_set_text(hotspot_switch_text, "TURN OFF AP");
 
-    char buf[BADGE_BUF_SIZE + 19] = {0};
-    snprintf(buf, sizeof(buf), "SSID: %s", badge_obj.ap_ssid);
-    lv_label_set_text(admin_ssid, buf);
-    snprintf(buf, sizeof(buf), "PASS: %s", badge_obj.ap_password);
-    lv_label_set_text(admin_pass, buf);
+    char buf[50] = {0};
+    snprintf(buf, sizeof(buf), "SSID: %s | PASS: %s", badge_obj.ap_ssid, badge_obj.ap_password);
+    lv_label_set_text(hotspot_ssid, buf);
+    lv_obj_set_hidden(hotspot_ssid, false);
 
-    lv_obj_set_hidden(admin_ssid, false);
-    lv_obj_set_hidden(admin_pass, false);
-
-    // Update IP information immediately
     ui_update_ip_info();
-
-    // TODO: Also create a delayed task to retry getting IP info
     // xTaskCreate(ui_delayed_ip_update_task, "delayed_ip_update", 2048, NULL, 5, NULL);
 
-    lv_btn_set_state(admin_switch, LV_BTN_STATE_CHECKED_PRESSED);
+    lv_btn_set_state(hotspot_switch, LV_BTN_STATE_CHECKED_PRESSED);
     admin_state = ADMIN_STATE_AP;
 }
 
@@ -1134,14 +1145,11 @@ void ui_ap_stop_handler()
 {
     ap_started = false;
 
-    lv_label_set_text(admin_switch_text, "TURN ON AP");
-    lv_obj_set_hidden(admin_ssid, true);
-    lv_obj_set_hidden(admin_pass, true);
-    lv_obj_set_hidden(admin_client_ip, true);
-    lv_obj_set_hidden(admin_gateway_ip, true);
-    lv_obj_set_hidden(admin_switch_sta, false);
+    lv_label_set_text(hotspot_switch_text, "TURN ON AP");
+    lv_obj_set_hidden(hotspot_ssid, true);
+    // lv_obj_set_hidden(hotspot_ip, true);
 
-    lv_btn_set_state(admin_switch, LV_BTN_STATE_RELEASED); // enabl(admin_switch);
+    lv_btn_set_state(hotspot_switch, LV_BTN_STATE_RELEASED); // enabl(admin_switch);
     admin_state = ADMIN_STATE_OFF;
 }
 
@@ -1153,14 +1161,15 @@ void ui_sta_connected_handler()
     ESP_LOGI("UI", "Current admin_state: %d", admin_state);
     ESP_LOGI("UI", "Current screen: %d", current_screen);
 
-    lv_btn_set_state(admin_switch_sta, LV_BTN_STATE_CHECKED_PRESSED);
-    lv_label_set_text(admin_switch_sta_text, "Downloading...");
+    lv_btn_set_state(sta_switch, LV_BTN_STATE_CHECKED_PRESSED);
+    lv_label_set_text(sta_switch_text, "Connected to wifi");
 
     // Update IP information when connected as station immediately
     ESP_LOGI("UI", "About to call ui_update_ip_info from STA connected handler");
     ui_update_ip_info();
     ESP_LOGI("UI", "ui_update_ip_info call completed from STA connected handler");
-
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    ui_update_ip_info();
     // TODO: Also create a delayed task to retry getting IP info
     // xTaskCreate(ui_delayed_ip_update_task, "delayed_ip_update", 2048, NULL, 5, NULL);
 
@@ -1170,18 +1179,19 @@ void ui_sta_connected_handler()
 void ui_sta_disconnected_handler()
 {
     sta_connected = false;
-    lv_btn_set_state(admin_switch_sta, LV_BTN_STATE_RELEASED);
-    lv_obj_set_hidden(admin_client_ip, true);
-    lv_obj_set_hidden(admin_gateway_ip, true);
+    lv_btn_set_state(sta_switch, LV_BTN_STATE_RELEASED);
+    lv_obj_set_hidden(sta_client_ip, true);
+    lv_obj_set_hidden(sta_gateway_ip, true);
+    ui_update_ip_info();
     admin_state = ADMIN_STATE_OFF;
 }
 
 void ui_sta_stop_handler()
 {
     sta_connected = false;
-    lv_label_set_text(admin_switch_sta_text, "SYNC SCHEDULE");
-    lv_obj_set_hidden(admin_client_ip, true);
-    lv_obj_set_hidden(admin_gateway_ip, true);
+    lv_label_set_text(sta_switch_text, "CONNECT TO INTERNET");
+    lv_obj_set_hidden(sta_client_ip, true);
+    lv_obj_set_hidden(sta_gateway_ip, true);
     admin_state = ADMIN_STATE_OFF;
 }
 
@@ -1189,27 +1199,19 @@ void ui_connection_progress(uint8_t cur, uint8_t max)
 {
     if (cur != max)
     {
-        char buf[BADGE_BUF_SIZE + 20] = {0}; // Increase the size of buf to accommodate the entire formatted string
-        snprintf(buf, sizeof(buf), "Connecting (%d/%d)", cur, max);
-        lv_label_set_text(admin_switch_sta_text, buf);
-        lv_obj_set_hidden(admin_switch_sta_text, false);
+        char buf[48] = {0}; // Increase the size of buf to accommodate the entire formatted string
+        snprintf(buf, sizeof(buf), "Connecting to %s... (%d/%d)", badge_obj.sta_ssid, cur, max);
+        lv_label_set_text(sta_switch_text, buf);
     }
     else
     {
-        lv_label_set_text(admin_switch_sta_text, "Connection failed!");
-        lv_obj_set_hidden(admin_switch_sta_text, false);
+        lv_label_set_text(sta_switch_text, "Connection failed!");
     }
-}
-
-void ui_toggle_sync()
-{
-    lv_btn_set_state(admin_sync, LV_BTN_STATE_RELEASED);
-    ui_send_wifi_event(EVENT_STA_STOP);
 }
 
 void ui_update_ip_info()
 {
-    char buf[BADGE_BUF_SIZE + 30] = {0};
+    char buf[BADGE_BUF_SIZE + 40] = {0};
 
     ESP_LOGI("UI", "=== IP INFO DEBUG ===");
     ESP_LOGI("UI", "sta_connected: %s, ap_started: %s, admin_state: %d",
@@ -1238,21 +1240,19 @@ void ui_update_ip_info()
             if (ret == ESP_OK && ip_info.ip.addr != 0)
             {
                 // Show AP IP information
-                snprintf(buf, sizeof(buf), "AP IP: " IPSTR, IP2STR(&ip_info.ip));
-                lv_label_set_text(admin_client_ip, buf);
-                lv_obj_set_hidden(admin_client_ip, false);
-                ESP_LOGI("UI", "Set admin_client_ip text to: %s", buf);
-
-                snprintf(buf, sizeof(buf), "\nConnect to\nhttp://" IPSTR, IP2STR(&ip_info.gw));
-                lv_label_set_text(admin_gateway_ip, buf);
-                lv_obj_set_hidden(admin_gateway_ip, false);
-                ESP_LOGI("UI", "Set admin_gateway_ip text to: %s", buf);
-                ESP_LOGI("UI", "Successfully displayed AP IP info");
+                snprintf(buf, sizeof(buf), "AP IP: " IPSTR " Listening on HTTP port\n.", IP2STR(&ip_info.ip));
+                lv_label_set_text(hotspot_ip, buf);
+                lv_obj_set_hidden(hotspot_ip, false);
+                ESP_LOGI("UI", "Set hotspot_ip text to: %s", buf);
                 return;
             }
         }
     }
 
+    ESP_LOGI("UI", "sta_connected: %s, ap_started: %s, admin_state: %d",
+             sta_connected ? "true" : "false",
+             ap_started ? "true" : "false",
+             admin_state);
     // Get STA interface and show STA IP when connected as station
     if (sta_connected)
     {
@@ -1272,13 +1272,13 @@ void ui_update_ip_info()
             {
                 ESP_LOGI("UI", "STA IP is valid, updating UI labels...");
                 snprintf(buf, sizeof(buf), "Client IP: " IPSTR, IP2STR(&ip_info.ip));
-                lv_label_set_text(admin_client_ip, buf);
-                lv_obj_set_hidden(admin_client_ip, false);
-                ESP_LOGI("UI", "Set admin_client_ip text to: %s", buf);
+                lv_label_set_text(sta_client_ip, buf);
+                lv_obj_set_hidden(sta_client_ip, false);
+                ESP_LOGI("UI", "Set sta_client_ip text to: %s", buf);
 
                 snprintf(buf, sizeof(buf), "Gateway: " IPSTR, IP2STR(&ip_info.gw));
-                lv_label_set_text(admin_gateway_ip, buf);
-                lv_obj_set_hidden(admin_gateway_ip, false);
+                lv_label_set_text(sta_gateway_ip, buf);
+                lv_obj_set_hidden(sta_gateway_ip, false);
                 ESP_LOGI("UI", "Set admin_gateway_ip text to: %s", buf);
                 ESP_LOGI("UI", "Successfully displayed STA IP info");
                 return;
@@ -1319,24 +1319,24 @@ void ui_update_ip_info()
             {
                 // AP interface
                 snprintf(buf, sizeof(buf), "AP IP: " IPSTR, IP2STR(&ip_info.ip));
-                lv_label_set_text(admin_client_ip, buf);
-                lv_obj_set_hidden(admin_client_ip, false);
+                lv_label_set_text(hotspot_ip, buf);
+                lv_obj_set_hidden(hotspot_ip, false);
 
-                snprintf(buf, sizeof(buf), "\nConnect to\nhttp://" IPSTR, IP2STR(&ip_info.gw));
+                /*snprintf(buf, sizeof(buf), "\nConnect to\nhttp://" IPSTR, IP2STR(&ip_info.gw));
                 lv_label_set_text(admin_gateway_ip, buf);
-                lv_obj_set_hidden(admin_gateway_ip, false);
+                lv_obj_set_hidden(admin_gateway_ip, false);*/
                 ip_found = true;
             }
             else if (desc && strstr(desc, "sta"))
             {
                 // STA interface
                 snprintf(buf, sizeof(buf), "Client IP: " IPSTR, IP2STR(&ip_info.ip));
-                lv_label_set_text(admin_client_ip, buf);
-                lv_obj_set_hidden(admin_client_ip, false);
+                lv_label_set_text(sta_client_ip, buf);
+                lv_obj_set_hidden(sta_client_ip, false);
 
-                snprintf(buf, sizeof(buf), "\nConnect to\nhttp://" IPSTR, IP2STR(&ip_info.gw));
-                lv_label_set_text(admin_gateway_ip, buf);
-                lv_obj_set_hidden(admin_gateway_ip, false);
+                snprintf(buf, sizeof(buf), "Gateway: " IPSTR, IP2STR(&ip_info.gw));
+                lv_label_set_text(sta_gateway_ip, buf);
+                lv_obj_set_hidden(sta_gateway_ip, false);
                 ip_found = true;
             }
             ESP_LOGI("UI", "Successfully displayed IP info from interface iteration");
@@ -1348,8 +1348,9 @@ void ui_update_ip_info()
     if (!ip_found)
     {
         ESP_LOGW("UI", "No valid IP information found to display");
-        lv_obj_set_hidden(admin_client_ip, true);
-        lv_obj_set_hidden(admin_gateway_ip, true);
+        lv_obj_set_hidden(sta_client_ip, true);
+        lv_obj_set_hidden(sta_gateway_ip, true);
+        lv_obj_set_hidden(hotspot_ip, true);
     }
 
     ESP_LOGI("UI", "=== END IP INFO DEBUG ===");

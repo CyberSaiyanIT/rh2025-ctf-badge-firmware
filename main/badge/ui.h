@@ -37,6 +37,7 @@
 #define ADMIN_STATE_OFF 0
 #define ADMIN_STATE_AP 1
 #define ADMIN_STATE_STA 2
+#define ADMIN_STATE_APSTA 3
 
 lv_obj_t *screen_logo;  // page 0
 lv_obj_t *screen_event; // page 1

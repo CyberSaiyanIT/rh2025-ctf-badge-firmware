@@ -89,7 +89,7 @@ esp_err_t _http_event_handle(esp_http_client_event_t *evt)
 
         output_len = 0;
         connected = false;
-        ui_toggle_sync();
+        // ui_toggle_sync();
 
         if (errors)
         {

@@ -90,13 +90,17 @@ char *load_schedule_from_file()
 cJSON *load_default()
 {
     char *default_content = load_file_content(DEFAULT_FILE);
-    return cJSON_Parse(default_content);
+    cJSON *json = cJSON_Parse(default_content);
+    free(default_content);
+    return json;
 }
 
 cJSON *load_settings()
 {
     char *default_content = load_file_content(SETTINGS_FILE);
-    return cJSON_Parse(default_content);
+    cJSON *json = cJSON_Parse(default_content);
+    free(default_content);
+    return json;
 }
 
 const char *json_get_str_value(cJSON *obj, const char *key)
@@ -166,17 +170,30 @@ bool update_attribute(int id, char *data)
     case 4: // Sync path
         snprintf(badge_obj.sync_path, SIZEOF(badge_obj.sync_path), "%s", data);
         break;
+    case 5: // Wifi Sta SSID
+        snprintf(badge_obj.sta_ssid, SIZEOF(badge_obj.sta_ssid), "%s", data);
+        break;
+    case 6: // WiFi Password
+        snprintf(badge_obj.sta_password, SIZEOF(badge_obj.sta_password), "%s", data);
+        break;
+    case 7: // NTP Server
+        snprintf(badge_obj.ntp_server, SIZEOF(badge_obj.ntp_server), "%s", data);
+        break;
     }
 
     cJSON *json_settings = load_settings();
     cJSON *obj_badge = cJSON_GetObjectItem(json_settings, "badge");
     cJSON *obj_web = cJSON_GetObjectItem(json_settings, "web");
     cJSON *obj_ap = cJSON_GetObjectItem(json_settings, "ap");
+    cJSON *obj_sta = cJSON_GetObjectItem(json_settings, "sta");
     cJSON *obj_sync = cJSON_GetObjectItem(json_settings, "sync");
 
     json_set_str_value(obj_badge, "name", badge_obj.device_name);
+    json_set_str_value(obj_badge, "ntp_server", badge_obj.ntp_server);
     json_set_str_value(obj_ap, "ssid", badge_obj.ap_ssid);
     json_set_str_value(obj_ap, "password", badge_obj.ap_password);
+    json_set_str_value(obj_sta, "ssid", badge_obj.sta_ssid);
+    json_set_str_value(obj_sta, "password", badge_obj.sta_password);
     json_set_str_value(obj_web, "login", badge_obj.web_login);
     json_set_str_value(obj_sync, "path", badge_obj.sync_path);
 
@@ -220,6 +237,7 @@ void badge_init()
         const char *sta_ssid = json_get_str_value(obj_sta, "ssid");
         const char *sta_password = json_get_str_value(obj_sta, "password");
         const char *sync_path = json_get_str_value(obj_sync, "path");
+        const char *ntp_server = json_get_str_value(obj_badge, "ntp_server");
 
         // Load brightness settings with defaults if not present
         int brightness_max = obj_display ? json_get_int_value(obj_display, "brightness_max") : 255;
@@ -237,6 +255,8 @@ void badge_init()
         snprintf(badge_obj.sta_ssid, SIZEOF(badge_obj.sta_ssid), "%s", sta_ssid);
         snprintf(badge_obj.sta_password, SIZEOF(badge_obj.sta_password), "%s", sta_password);
         snprintf(badge_obj.sync_path, SIZEOF(badge_obj.sync_path), "%s", sync_path);
+
+        snprintf(badge_obj.ntp_server, SIZEOF(badge_obj.ntp_server), "%s", ntp_server);
 
         // Set brightness values
         badge_obj.brightness_max = (uint8_t)brightness_max;
@@ -273,6 +293,8 @@ void badge_init()
     const char *sta_password = json_get_str_value(obj_sta, "password");
     const char *sync_path = json_get_str_value(obj_sync, "path");
 
+    const char *ntp_server = json_get_str_value(obj_badge, "ntp_server");
+
     // Load brightness settings with defaults if not present
     int brightness_max = obj_display ? json_get_int_value(obj_display, "brightness_max") : 255;
     int brightness_mid = obj_display ? json_get_int_value(obj_display, "brightness_mid") : 200;
@@ -292,6 +314,8 @@ void badge_init()
     snprintf(badge_obj.sta_ssid, SIZEOF(badge_obj.sta_ssid), "%s", sta_ssid);
     snprintf(badge_obj.sta_password, SIZEOF(badge_obj.sta_password), "%s", sta_password);
     snprintf(badge_obj.sync_path, SIZEOF(badge_obj.sync_path), "%s", sync_path);
+
+    snprintf(badge_obj.ntp_server, SIZEOF(badge_obj.ntp_server), "%s", ntp_server);
 
     // Set brightness values
     badge_obj.brightness_max = (uint8_t)brightness_max;

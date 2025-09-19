@@ -11,19 +11,6 @@ const int FAIL_BIT = BIT1;
 
 static int retry_num = 0;
 static int ap_clients_num = 0;
-static esp_timer_handle_t inactivity_timer;
-
-static void inactivity_timer_callback(void *arg)
-{
-	if (!ap_clients_num)
-	{
-		stop_wifi();
-	}
-	else
-	{
-		ESP_LOGE(__FILE__, "Timer should not be running...");
-	}
-}
 
 static void event_handler(void *arg, esp_event_base_t event_base,
 						  int32_t event_id, void *event_data)
@@ -34,7 +21,6 @@ static void event_handler(void *arg, esp_event_base_t event_base,
 		ESP_LOGI(TAG, "station " MACSTR " join, AID=%d",
 				 MAC2STR(event->mac), event->aid);
 		ap_clients_num++;
-		esp_timer_stop(inactivity_timer);
 	}
 	else if (event_id == WIFI_EVENT_AP_STADISCONNECTED)
 	{
@@ -44,8 +30,6 @@ static void event_handler(void *arg, esp_event_base_t event_base,
 		ap_clients_num--;
 		if (ap_clients_num < 0)
 			ap_clients_num = 0;
-		if (!ap_clients_num)
-			esp_timer_start_once(inactivity_timer, AP_INACTIVITY_TIMEOUT_S * 1000000);
 	}
 	else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
 	{
@@ -103,145 +87,7 @@ void wifi_init(void)
 	initialized = true;
 }
 
-bool start_wifi_ap(void)
-{
-	ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
-
-	const char *AP_WIFI_SSID = badge_obj.ap_ssid;
-	const char *AP_WIFI_PASSWORD = badge_obj.ap_password;
-
-	wifi_config_t wifi_config = {0};
-	snprintf((char *)wifi_config.ap.ssid, SIZEOF(wifi_config.ap.ssid), "%s", AP_WIFI_SSID);
-	snprintf((char *)wifi_config.ap.password, SIZEOF(wifi_config.ap.password), "%s", AP_WIFI_PASSWORD);
-	wifi_config.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
-	wifi_config.ap.ssid_len = strlen(AP_WIFI_SSID);
-	wifi_config.ap.max_connection = AP_MAX_STA_CONN;
-
-	if (strlen(AP_WIFI_PASSWORD) == 0)
-	{
-		wifi_config.ap.authmode = WIFI_AUTH_OPEN;
-	}
-
-	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));
-	ESP_ERROR_CHECK(esp_wifi_start());
-	ESP_ERROR_CHECK(esp_wifi_set_inactive_time(WIFI_IF_AP, AP_INACTIVITY_TIMEOUT_S));
-
-	const esp_timer_create_args_t timer_args = {
-		.callback = &inactivity_timer_callback,
-		.name = "inactivity-timer"};
-
-	ESP_ERROR_CHECK(esp_timer_create(&timer_args, &inactivity_timer));
-
-	ESP_LOGI(TAG, "WIFI_MODE_AP started. SSID:%s password:%s",
-			 AP_WIFI_SSID, AP_WIFI_PASSWORD);
-
-	curr_mode = WIFI_MODE_AP;
-	ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
-
-	return ESP_OK;
-}
-
-bool start_wifi_sta()
-{
-	ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
-
-	const char *STA_WIFI_SSID = badge_obj.sta_ssid;
-	const char *STA_WIFI_PASSWORD = badge_obj.sta_password;
-
-	wifi_config_t wifi_config = {0};
-	snprintf((char *)wifi_config.sta.ssid, SIZEOF(wifi_config.sta.ssid), "%s", STA_WIFI_SSID);
-
-	// Only set password if it's not empty (for open networks)
-	if (strlen(STA_WIFI_PASSWORD) > 0)
-	{
-		snprintf((char *)wifi_config.sta.password, SIZEOF(wifi_config.sta.password), "%s", STA_WIFI_PASSWORD);
-	}
-
-	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
-	ESP_ERROR_CHECK(esp_wifi_start());
-	ESP_ERROR_CHECK(esp_wifi_connect());
-
-	int bits = xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT,
-								   pdFALSE, pdTRUE, STA_TIMEOUT_MS / portTICK_PERIOD_MS);
-	ESP_LOGI(TAG, "bits=%x", bits);
-	if (bits & CONNECTED_BIT)
-	{
-		ESP_LOGI(TAG, "WIFI_MODE_STA connected. SSID:%s password:%s",
-				 STA_WIFI_SSID, STA_WIFI_PASSWORD);
-		schedule_sync_handler(true);
-	}
-	else
-	{
-		ESP_LOGI(TAG, "WIFI_MODE_STA can't connected. SSID:%s password:%s",
-				 STA_WIFI_SSID, STA_WIFI_PASSWORD);
-		stop_wifi();
-	}
-
-	curr_mode = WIFI_MODE_STA;
-	ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
-
-	return (bits & CONNECTED_BIT) != 0;
-}
-
-bool start_wifi_apsta()
-{
-	ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
-
-	const char *AP_WIFI_SSID = badge_obj.ap_ssid;
-	const char *AP_WIFI_PASSWORD = badge_obj.ap_password;
-	const char *STA_WIFI_SSID = badge_obj.sta_ssid;
-	const char *STA_WIFI_PASSWORD = badge_obj.sta_password;
-
-	wifi_config_t ap_config = {0};
-
-	snprintf((char *)ap_config.ap.ssid, SIZEOF(ap_config.ap.ssid), "%s", AP_WIFI_SSID);
-	snprintf((char *)ap_config.ap.password, SIZEOF(ap_config.ap.password), "%s", AP_WIFI_PASSWORD);
-	ap_config.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
-	ap_config.ap.ssid_len = strlen(AP_WIFI_SSID);
-	ap_config.ap.max_connection = AP_MAX_STA_CONN;
-
-	if (strlen(AP_WIFI_PASSWORD) == 0)
-	{
-		ap_config.ap.authmode = WIFI_AUTH_OPEN;
-	}
-
-	wifi_config_t sta_config = {0};
-	snprintf((char *)sta_config.sta.ssid, SIZEOF(sta_config.sta.ssid), "%s", STA_WIFI_SSID);
-	snprintf((char *)sta_config.sta.password, SIZEOF(sta_config.sta.password), "%s", STA_WIFI_PASSWORD);
-
-	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &ap_config));
-	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &sta_config));
-	ESP_ERROR_CHECK(esp_wifi_start());
-	ESP_LOGI(TAG, "WIFI_MODE_AP started. SSID:%s password:%s",
-			 AP_WIFI_SSID, AP_WIFI_PASSWORD);
-
-	ESP_ERROR_CHECK(esp_wifi_connect());
-	int bits = xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT,
-								   pdFALSE, pdTRUE, STA_TIMEOUT_MS / portTICK_PERIOD_MS);
-	ESP_LOGI(TAG, "bits=%x", bits);
-	if (bits & CONNECTED_BIT)
-	{
-		ESP_LOGI(TAG, "WIFI_MODE_STA connected. SSID:%s password:%s",
-				 STA_WIFI_SSID, STA_WIFI_PASSWORD);
-		schedule_sync_handler(true);
-	}
-	else
-	{
-		ESP_LOGI(TAG, "WIFI_MODE_STA can't connected. SSID:%s password:%s",
-				 STA_WIFI_SSID, STA_WIFI_PASSWORD);
-		stop_wifi();
-	}
-
-	curr_mode = WIFI_MODE_APSTA;
-	ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
-
-	return (bits & CONNECTED_BIT) != 0;
-}
-
-bool start_wifi_ap_2(void)
+bool wifi_start(int event)
 {
 	ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
 
@@ -266,68 +112,172 @@ bool start_wifi_ap_2(void)
 		wifi_config.ap.authmode = WIFI_AUTH_OPEN;
 	}
 
-	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));
-	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &sta_config));
-	ESP_ERROR_CHECK(esp_wifi_start());
-	ESP_ERROR_CHECK(esp_wifi_set_inactive_time(WIFI_IF_AP, AP_INACTIVITY_TIMEOUT_S));
-	ESP_ERROR_CHECK(esp_wifi_set_inactive_time(WIFI_IF_STA, AP_INACTIVITY_TIMEOUT_S));
-
-	// --- Retry loop STA ---
-	int retry = 0;
-	bool sta_connected = false;
-	while (retry < 5 && !sta_connected)
+	if (curr_mode == WIFI_MODE_NULL && event == EVENT_HOTSPOT_START)
 	{
-		ESP_LOGI(TAG, "Trying to connect STA... attempt %d/%d", retry + 1, 5);
-		ESP_ERROR_CHECK(esp_wifi_connect());
+		ESP_LOGI(TAG, "Current mode is NULL, starting AP mode");
+		ESP_ERROR_CHECK(esp_wifi_stop());
+		ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+		ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));
+		ESP_ERROR_CHECK(esp_wifi_start());
+		ESP_LOGI(TAG, "WIFI_MODE_AP started. SSID:%s password:%s",
+				 AP_WIFI_SSID, AP_WIFI_PASSWORD);
+		curr_mode = WIFI_MODE_AP;
+		ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
+		return ESP_OK;
+	}
+	else if (curr_mode == WIFI_MODE_NULL && event == EVENT_STA_START)
+	{
+		ESP_LOGI(TAG, "Current mode is NULL, starting STA mode");
+		ESP_ERROR_CHECK(esp_wifi_stop());
+		ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+		ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &sta_config));
+		ESP_ERROR_CHECK(esp_wifi_start());
+		ESP_LOGI(TAG, "WIFI_MODE_STA started. SSID:%s password:%s",
+				 STA_WIFI_SSID, STA_WIFI_PASSWORD);
+		curr_mode = WIFI_MODE_STA;
+		ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
 
-		int bits = xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT,
-									   pdFALSE, pdTRUE,
-									   STA_TIMEOUT_MS / portTICK_PERIOD_MS);
-
-		if (bits & CONNECTED_BIT)
+		int retry = 0;
+		bool sta_connected = false;
+		while (retry < 5 && !sta_connected)
 		{
-			ESP_LOGI(TAG, "WIFI_MODE_STA connected. SSID:%s password:%s",
-					 STA_WIFI_SSID, STA_WIFI_PASSWORD);
-			sta_connected = true;
+			ESP_LOGI(TAG, "Trying to connect STA... attempt %d/%d", retry + 1, 5);
+			esp_wifi_disconnect();
+			esp_err_t err = esp_wifi_connect();
+			if (err != ESP_OK)
+			{
+				ESP_LOGE(TAG, "esp_wifi_connect failed: %s", esp_err_to_name(err));
+			}
+
+			int bits = xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT,
+										   pdFALSE, pdTRUE,
+										   STA_TIMEOUT_MS / portTICK_PERIOD_MS);
+
+			if (bits & CONNECTED_BIT)
+			{
+				ESP_LOGI(TAG, "WIFI_MODE_STA connected. SSID:%s password:%s",
+						 STA_WIFI_SSID, STA_WIFI_PASSWORD);
+				sta_connected = true;
+				schedule_sync_handler(true);
+			}
+			else
+			{
+				ESP_LOGW(TAG, "STA connect timeout, retrying...");
+				retry++;
+			}
 		}
-		else
+		if (!sta_connected)
 		{
-			ESP_LOGW(TAG, "STA connect timeout, retrying...");
-			retry++;
+			ESP_LOGE(TAG, "Failed to connect STA after %d retries", 5);
+			curr_mode = WIFI_MODE_NULL;
+			ESP_ERROR_CHECK(esp_wifi_set_mode(curr_mode));
+			ESP_ERROR_CHECK(esp_wifi_stop());
+			ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
+			return ESP_FAIL;
+		}
+	}
+	else if ((curr_mode == WIFI_MODE_STA && event == EVENT_HOTSPOT_START) ||
+			 (curr_mode == WIFI_MODE_AP && event == EVENT_STA_START))
+	{
+		ESP_LOGI(TAG, "Switching to APSTA mode");
+		ESP_ERROR_CHECK(esp_wifi_stop());
+		ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+		ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));
+		ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &sta_config));
+		ESP_ERROR_CHECK(esp_wifi_start());
+		ESP_LOGI(TAG, "WIFI_MODE_APSTA started. SSID:%s password:%s",
+				 AP_WIFI_SSID, AP_WIFI_PASSWORD);
+		curr_mode = WIFI_MODE_APSTA;
+		ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
+
+		int retry = 0;
+		bool sta_connected = false;
+		while (retry < 5 && !sta_connected)
+		{
+			ESP_LOGI(TAG, "Trying to connect STA... attempt %d/%d", retry + 1, 5);
+			esp_wifi_disconnect();
+			esp_err_t err = esp_wifi_connect();
+			if (err != ESP_OK)
+			{
+				ESP_LOGE(TAG, "esp_wifi_connect failed: %s", esp_err_to_name(err));
+			}
+
+			int bits = xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT,
+										   pdFALSE, pdTRUE,
+										   STA_TIMEOUT_MS / portTICK_PERIOD_MS);
+
+			if (bits & CONNECTED_BIT)
+			{
+				ESP_LOGI(TAG, "WIFI_MODE_STA connected. SSID:%s password:%s",
+						 STA_WIFI_SSID, STA_WIFI_PASSWORD);
+				sta_connected = true;
+				schedule_sync_handler(true);
+			}
+			else
+			{
+				ESP_LOGW(TAG, "STA connect timeout, retrying...");
+				retry++;
+			}
+		}
+		if (!sta_connected)
+		{
+			ESP_LOGE(TAG, "Failed to connect STA after %d retries", 5);
+			curr_mode = WIFI_MODE_AP;
+			ESP_ERROR_CHECK(esp_wifi_set_mode(curr_mode));
+			ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
+			return ESP_FAIL;
 		}
 	}
 
-	if (!sta_connected)
-	{
-		ESP_LOGE(TAG, "Failed to connect STA after %d retries", 5);
-		// qui puoi decidere: restare solo in AP oppure ritentare più tardi
-	}
-
-	const esp_timer_create_args_t timer_args = {
-		.callback = &inactivity_timer_callback,
-		.name = "inactivity-timer"};
-
-	ESP_ERROR_CHECK(esp_timer_create(&timer_args, &inactivity_timer));
-
-	ESP_LOGI(TAG, "WIFI_MODE_AP started. SSID:%s password:%s",
-			 AP_WIFI_SSID, AP_WIFI_PASSWORD);
-
-	curr_mode = WIFI_MODE_APSTA;
 	ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
-
 	return ESP_OK;
 }
 
-void stop_wifi()
+void wifi_stop(int event)
 {
 	ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
 
-	esp_wifi_disconnect();
-	esp_wifi_stop();
-	esp_wifi_set_mode(WIFI_MODE_NULL);
-	ESP_LOGI(TAG, "WIFI disabled");
-	ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
+	if (curr_mode == WIFI_MODE_NULL)
+	{
+		ESP_LOGI(TAG, "WIFI already disabled");
+		ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
+		return;
+	}
+	else if ((curr_mode == WIFI_MODE_AP && event == EVENT_HOTSPOT_STOP) ||
+			 (curr_mode == WIFI_MODE_STA && event == EVENT_STA_STOP))
+	{
+		ESP_LOGI(TAG, "Stopping AP mode");
+		esp_wifi_disconnect();
+		esp_wifi_set_mode(WIFI_MODE_NULL);
+		esp_wifi_stop();
+		ESP_LOGI(TAG, "WIFI disabled");
+		ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
+	}
+	else if (curr_mode == WIFI_MODE_APSTA)
+	{
+		if (event == EVENT_HOTSPOT_STOP)
+		{
+			ESP_LOGI(TAG, "Stopping AP mode in APSTA");
+			esp_wifi_disconnect();
+			esp_wifi_set_mode(WIFI_MODE_STA);
+			esp_wifi_connect();
+			curr_mode = WIFI_MODE_STA;
+			ESP_LOGI(TAG, "WIFI_MODE_STA active");
+			ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
+			return;
+		}
+		else if (event == EVENT_STA_STOP)
+		{
+			ESP_LOGI(TAG, "Stopping STA mode in APSTA");
+			esp_wifi_disconnect();
+			esp_wifi_set_mode(WIFI_MODE_AP);
+			esp_wifi_connect();
+			curr_mode = WIFI_MODE_AP;
+			ESP_LOGI(TAG, "WIFI_MODE_AP active");
+			ESP_LOGI(__FILE__, "free_heap_size = %lu\n", esp_get_free_heap_size());
+			return;
+		}
+	}
 }
 
 void wifi_task(void *arg)
@@ -343,22 +293,15 @@ void wifi_task(void *arg)
 		switch (wifi_event)
 		{
 		case EVENT_HOTSPOT_START:
-			stop_wifi();
-			start_wifi_ap_2();
-			esp_timer_start_once(inactivity_timer, AP_INACTIVITY_TIMEOUT_S * 1000000);
-			break;
 		case EVENT_STA_START:
-			stop_wifi();
-			start_wifi_sta();
-			retry_num = 0;
+			wifi_start(wifi_event);
 			break;
 		case EVENT_SYNC_START:
 			schedule_sync_handler(true);
 			break;
 		case EVENT_HOTSPOT_STOP:
 		case EVENT_STA_STOP:
-			stop_wifi();
-			esp_timer_stop(inactivity_timer);
+			wifi_stop(wifi_event);
 			break;
 		default:
 			ESP_LOGI(__FILE__, "not exists event 0x%04" PRIx32, wifi_event);
@@ -372,7 +315,7 @@ static void init_sntp(void)
 {
 	ESP_LOGI(__FILE__, "Initializing SNTP");
 	sntp_setoperatingmode(SNTP_OPMODE_POLL);
-	sntp_setservername(0, "pool.ntp.org");
+	sntp_setservername(0, badge_obj.ntp_server);
 	sntp_init();
 }
 

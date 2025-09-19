@@ -29,16 +29,20 @@
 #define API_ENDPOINT "/api/v1/"
 #define API_ENDPOINT_WILDCARD "/api/v1/*"
 
-typedef struct rest_server_context {
+typedef struct rest_server_context
+{
     char base_path[ESP_VFS_PATH_MAX + 1];
     char scratch[SCRATCH_BUFSIZE];
 } rest_server_context_t;
 
 #define SESSION_KEY_LEN 8
 
-void disconnect_handler(void* arg, esp_event_base_t event_base,
-                               int32_t event_id, void* event_data);
+void disconnect_handler(void *arg, esp_event_base_t event_base,
+                        int32_t event_id, void *event_data);
 
-void connect_handler(void* arg, esp_event_base_t event_base,
-                               int32_t event_id, void* event_data);
+void connect_handler(void *arg, esp_event_base_t event_base,
+                     int32_t event_id, void *event_data);
+
+esp_err_t post_score_event(const char *decoded, size_t decoded_len, cJSON *points);
+
 #endif
