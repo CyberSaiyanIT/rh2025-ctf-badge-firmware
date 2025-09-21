@@ -314,7 +314,9 @@ void wifi_task(void *arg)
 static void init_sntp(void)
 {
 	ESP_LOGI(__FILE__, "Initializing SNTP");
+	esp_log_level_set("sntp", ESP_LOG_DEBUG);
 	sntp_setoperatingmode(SNTP_OPMODE_POLL);
+	ESP_LOGI(__FILE__, "NTP server: %s\n", badge_obj.ntp_server);
 	sntp_setservername(0, badge_obj.ntp_server);
 	sntp_init();
 }
@@ -333,5 +335,6 @@ void obtain_time(void)
 		vTaskDelay(2000 / portTICK_PERIOD_MS);
 		time(&now);
 		localtime_r(&now, &timeinfo);
+		ESP_LOGI(__FILE__, "Current time: %s", asctime(&timeinfo));
 	}
 }

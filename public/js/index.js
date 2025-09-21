@@ -8,7 +8,7 @@ var logout_button = document.querySelector("#btnLogout");
 var badge_name_form = document.querySelector("#badge-name-form");
 var badge_name_input = document.querySelector("#badge-name");
 var ntp_input = document.querySelector("#ntp-input");
-var ntp_form = document.querySelector('#ntp-form')
+var ntp_form = document.querySelector('#ntp-form');
 var wifi_ssid_form = document.querySelector("#wifi-ssid-form");
 var wifi_ssid_input = document.querySelector("#wifi-ssid");
 
@@ -281,6 +281,30 @@ wifi_ssid_form.addEventListener('submit', function (evt) {
   }
 });
 
+wifi_client_ssid_form.addEventListener('submit', function (evt) {
+  evt.preventDefault();
+  if (wifi_client_ssid_input.value.length > 0) {
+    query_wifi_client(getCookie("key"), wifi_client_ssid_input.value, null, null)
+      .then(wifi => { setInput(wifi_client_ssid_input, wifi.ssid) })
+      .then(() => Toastify({
+        text: "WiFi ssid successfully changed. Please restart AP mode.",
+        duration: 3000,
+        position: "center",
+        style: {
+          background: "#28a745",
+        },
+      }).showToast())
+      .catch(() => Toastify({
+        text: "Error. Cannot change ssid.",
+        duration: 3000,
+        position: "center",
+        style: {
+          background: "#dc3545",
+        },
+      }).showToast());
+  }
+});
+
 web_password_form.addEventListener('submit', function (evt) {
   evt.preventDefault();
   if ((web_password_input1.value.length > 0) && (web_password_input2.value.length > 0)) {
@@ -341,7 +365,7 @@ wifi_password_form.addEventListener('submit', function (evt) {
 
 ntp_form.addEventListener('submit', function (evt) {
   evt.preventDefault();
-  if ((ntp_input.length > 0)) {
+  if ((ntp_input.value.length > 0)) {
     query_ntp_server(getCookie('key'), ntp_input.value).then(() => Toastify({
       text: "NTP server changed.",
       duration: 3000,

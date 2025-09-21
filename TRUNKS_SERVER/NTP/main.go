@@ -38,7 +38,11 @@ func main() {
 
 		resp := make([]byte, 48)
 		resp[0] = 0x1C // LI=0, Version=3, Mode=4 (server)
+		resp[1] = 2    // Stratum 2 (valore tipico per un server NTP non root)
 		// Root Delay, Root Dispersion, Reference ID lasciati a zero
+		binary.BigEndian.PutUint32(resp[4:], 1<<16) // Root Delay = 1.0
+		binary.BigEndian.PutUint32(resp[8:], 1<<16) // Root Dispersion = 1.0
+		copy(resp[12:16], []byte{0, 0, 0, 1})       // Reference ID = 0.0.0.1
 
 		// Reference Timestamp
 		binary.BigEndian.PutUint32(resp[16:], secs)
@@ -51,6 +55,8 @@ func main() {
 		// Transmit Timestamp
 		binary.BigEndian.PutUint32(resp[40:], secs)
 		binary.BigEndian.PutUint32(resp[44:], frac)
+		ts := (uint64(secs) << 32) | uint64(frac)
+		log.Printf("Transmit Timestamp: %d", ts)
 
 		_, err = conn.WriteToUDP(resp, clientAddr)
 		if err != nil {

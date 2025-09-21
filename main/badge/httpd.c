@@ -119,8 +119,11 @@ void byte_to_hex_str(char *xp, const char *bb, int n)
 static void session_destroy()
 {
     ESP_LOGI(__FILE__, "Destroy Context function called");
-    free(session_key);
-    session_key = NULL;
+    if (session_key)
+    {
+        free(session_key);
+        session_key = NULL;
+    }
 }
 
 static esp_err_t session_init(httpd_req_t *req)
@@ -128,10 +131,12 @@ static esp_err_t session_init(httpd_req_t *req)
     char nonce[SESSION_KEY_LEN];
     esp_fill_random(nonce, SESSION_KEY_LEN);
 
-    if (!session_key)
+    if (session_key)
     {
-        session_key = calloc(1, SESSION_KEY_LEN + 1);
+        free(session_key);
+        session_key = NULL;
     }
+    session_key = calloc(1, SESSION_KEY_LEN + 1);
 
     byte_to_hex_str(session_key, nonce, SESSION_KEY_LEN);
 
@@ -829,6 +834,10 @@ static httpd_handle_t start_webserver(void)
     if (httpd_start(&server, &config) == ESP_OK)
     {
         REST_CHECK(BASE_PATH, "wrong base path", err);
+        if (rest_context)
+        {
+            free(rest_context);
+        }
         rest_context = calloc(1, sizeof(rest_server_context_t));
         REST_CHECK(rest_context, "No memory for rest context", err);
         strlcpy(rest_context->base_path, BASE_PATH, sizeof(rest_context->base_path));
@@ -861,7 +870,11 @@ err:
 static esp_err_t stop_webserver(httpd_handle_t server)
 {
     // Stop the httpd server
-    free(rest_context);
+    if (rest_context)
+    {
+        free(rest_context);
+        rest_context = NULL;
+    }
     return httpd_stop(server);
 }
 
