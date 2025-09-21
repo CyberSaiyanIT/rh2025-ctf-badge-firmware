@@ -3,6 +3,7 @@
 #include "touch.h"
 #include "wifi.h"
 #include <time.h>
+#include "freertos/semphr.h"
 
 enum screen_order
 {
@@ -26,6 +27,9 @@ enum ctf_screen_order
 
 static lv_obj_t *screens[NUM_SCREENS];
 static int8_t current_screen = SCREEN_LOGO;
+
+// Global GUI semaphore to protect LVGL calls from tasks other than ui_task
+static SemaphoreHandle_t xGuiSemaphore = NULL;
 
 static lv_obj_t *ctf_screens[CTF_NUM_SCREENS];
 static int8_t current_ctf_screen = CTF_SCREEN_NYAN;
@@ -59,19 +63,11 @@ static lv_obj_t *debug_box;
 void ui_update_ip_info(void);
 void ui_list_all_netifs(void);
 
-// Nyan images
-LV_IMG_DECLARE(saiyancat_only);
-LV_IMG_DECLARE(saiyan_tail_sprite);
-LV_IMG_DECLARE(nyan_star_sprite);
-LV_IMG_DECLARE(crilitrunks_8bit);
-LV_IMG_DECLARE(display_otp);
-static lv_obj_t *tail;
-
-static void anim_tail_cb(void *var, lv_anim_value_t v)
+/*static void anim_tail_cb(void *var, lv_anim_value_t v)
 {
     lv_img_set_offset_x(tail, -v * 27);
     lv_img_set_offset_y(tail, v * 10);
-}
+}*/
 
 static void anim_star_cb(void *var, lv_anim_value_t v)
 {
@@ -204,7 +200,7 @@ void ui_button_up()
     switch (current_screen)
     {
     case SCREEN_SNAKE:
-        lv_task_set_prio(snake_task_handle, LV_TASK_PRIO_HIGHEST);
+        lv_task_set_prio(snake_task_handle, LV_TASK_PRIO_LOW);
         snake_set_dir(1);
         break;
     case SCREEN_NYAN:
@@ -307,7 +303,7 @@ void ui_button_down()
     switch (current_screen)
     {
     case SCREEN_SNAKE:
-        lv_task_set_prio(snake_task_handle, LV_TASK_PRIO_HIGHEST);
+        lv_task_set_prio(snake_task_handle, LV_TASK_PRIO_LOW);
         snake_set_dir(-1);
         break;
     case SCREEN_NYAN:
@@ -452,7 +448,6 @@ static void ui_backlight_task(lv_task_t *arg)
 
 static void ui_radar_task(lv_task_t *arg)
 {
-
     if (lv_scr_act() != screen_radar)
     {
         lv_task_set_prio(radar_task_handle, LV_TASK_PRIO_OFF);
@@ -603,7 +598,30 @@ static void set_rainbow_y(void *bar, int32_t v)
 {
     lv_obj_set_y((lv_obj_t *)bar, v);
 }
-static void create_rainbow_bar(lv_obj_t *parent, lv_color_t color, int y_offset)
+
+static void set_rainbow_y2(void *bar, int32_t v)
+{
+    lv_obj_set_y((lv_obj_t *)bar, v);
+}
+static lv_style_t rainbow_styles[6];
+// store pointers to the rainbow bars so we can explicitly stop their animations
+static lv_obj_t *nyan_rainbow_bars[6][4] = {{0}};
+static void clean_nyan_rainbow_animations(void)
+{
+    for (int i = 0; i < 6; i++)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            if (nyan_rainbow_bars[i][j])
+            {
+                lv_anim_del(nyan_rainbow_bars[i][j], NULL); // stop all animations on this obj
+                lv_obj_del(nyan_rainbow_bars[i][j]);
+                nyan_rainbow_bars[i][j] = NULL;
+            }
+        }
+    }
+}
+static void create_rainbow_bar(lv_obj_t *parent, lv_color_t color, int y_offset, int index)
 {
     lv_obj_t *bar1 = lv_obj_create(parent, NULL);
     lv_obj_set_size(bar1, 40, 10);
@@ -616,16 +634,25 @@ static void create_rainbow_bar(lv_obj_t *parent, lv_color_t color, int y_offset)
 
     lv_obj_t *bar3 = lv_obj_create(parent, NULL);
     lv_obj_set_size(bar3, 40, 10);
-    lv_obj_set_y(bar3, y_offset);
+    lv_obj_set_y(bar3, y_offset + 1);
     lv_obj_set_x(bar3, 80);
 
     lv_obj_t *bar4 = lv_obj_create(parent, NULL);
     lv_obj_set_size(bar4, 40, 10);
-    lv_obj_set_y(bar4, y_offset + 5);
+    lv_obj_set_y(bar4, y_offset + 6);
     lv_obj_set_x(bar4, 120);
+    /* save pointers so we can explicitly stop animations later */
+    int idx = index - 1;
+    if (idx >= 0 && idx < 6)
+    {
+        nyan_rainbow_bars[idx][0] = bar1;
+        nyan_rainbow_bars[idx][1] = bar2;
+        nyan_rainbow_bars[idx][2] = bar3;
+        nyan_rainbow_bars[idx][3] = bar4;
+    }
 
     // Creazione style
-    lv_style_t *style = lv_mem_alloc(sizeof(lv_style_t));
+    lv_style_t *style = &rainbow_styles[index - 1];
     lv_style_init(style);
     lv_style_set_bg_opa(style, LV_STATE_DEFAULT, LV_OPA_COVER);
     lv_style_set_bg_color(style, LV_STATE_DEFAULT, color);
@@ -641,8 +668,8 @@ static void create_rainbow_bar(lv_obj_t *parent, lv_color_t color, int y_offset)
     lv_anim_set_var(&a1_y, bar1);
     lv_anim_set_exec_cb(&a1_y, set_rainbow_y);
     lv_anim_set_values(&a1_y, y_offset, y_offset + 10);
-    lv_anim_set_time(&a1_y, 300);
-    lv_anim_set_playback_time(&a1_y, 300);
+    lv_anim_set_time(&a1_y, 1200);
+    lv_anim_set_playback_time(&a1_y, 1200);
     lv_anim_set_repeat_count(&a1_y, LV_ANIM_REPEAT_INFINITE);
     lv_anim_start(&a1_y);
 
@@ -651,34 +678,35 @@ static void create_rainbow_bar(lv_obj_t *parent, lv_color_t color, int y_offset)
     lv_anim_set_var(&a2_y, bar2);
     lv_anim_set_exec_cb(&a2_y, set_rainbow_y);
     lv_anim_set_values(&a2_y, y_offset - 5, y_offset + 15);
-    lv_anim_set_time(&a2_y, 300);
-    lv_anim_set_playback_time(&a2_y, 300);
+    lv_anim_set_time(&a2_y, 1200);
+    lv_anim_set_playback_time(&a2_y, 1200);
     lv_anim_set_repeat_count(&a2_y, LV_ANIM_REPEAT_INFINITE);
     lv_anim_start(&a2_y);
 
     lv_anim_t a3_y;
     lv_anim_init(&a3_y);
     lv_anim_set_var(&a3_y, bar3);
-    lv_anim_set_exec_cb(&a3_y, set_rainbow_y);
-    lv_anim_set_values(&a3_y, y_offset, y_offset + 10);
-    lv_anim_set_time(&a3_y, 300);
-    lv_anim_set_playback_time(&a3_y, 300);
+    lv_anim_set_exec_cb(&a3_y, set_rainbow_y2);
+    lv_anim_set_values(&a3_y, y_offset, y_offset + 11);
+    lv_anim_set_time(&a3_y, 1200);
+    lv_anim_set_playback_time(&a3_y, 1200);
     lv_anim_set_repeat_count(&a3_y, LV_ANIM_REPEAT_INFINITE);
     lv_anim_start(&a3_y);
 
     lv_anim_t a4_y;
     lv_anim_init(&a4_y);
     lv_anim_set_var(&a4_y, bar4);
-    lv_anim_set_exec_cb(&a4_y, (lv_anim_exec_xcb_t)set_rainbow_y);
-    lv_anim_set_values(&a4_y, y_offset - 5, y_offset + 15);
-    lv_anim_set_time(&a4_y, 300);
-    lv_anim_set_playback_time(&a4_y, 300);
+    lv_anim_set_exec_cb(&a4_y, set_rainbow_y2);
+    lv_anim_set_values(&a4_y, y_offset - 5, y_offset + 16);
+    lv_anim_set_time(&a4_y, 1200);
+    lv_anim_set_playback_time(&a4_y, 1200);
     lv_anim_set_repeat_count(&a4_y, LV_ANIM_REPEAT_INFINITE);
     lv_anim_start(&a4_y);
 }
 
 void create_star(lv_obj_t *parent, int x_offset, int y_offset, int index)
 {
+    LV_IMG_DECLARE(nyan_star_sprite);
     lv_obj_t *star = lv_img_create(parent, NULL);
     lv_img_set_src(star, &nyan_star_sprite);
     lv_obj_set_size(star, 32, 32); // finestra di visualizzazione
@@ -700,6 +728,10 @@ void create_star(lv_obj_t *parent, int x_offset, int y_offset, int index)
 
 void create_cat(lv_obj_t *parent)
 {
+    // Nyan images
+    LV_IMG_DECLARE(saiyancat_only);
+    LV_IMG_DECLARE(saiyan_tail_sprite);
+
     lv_obj_t *img = lv_img_create(parent, NULL);
     lv_img_set_src(img, &saiyancat_only);
     lv_obj_set_pos(img, 140, 45);
@@ -728,8 +760,8 @@ void create_cat(lv_obj_t *parent)
     lv_anim_set_var(&a_y, img);
     lv_anim_set_exec_cb(&a_y, (lv_anim_exec_xcb_t)lv_obj_set_y);
     lv_anim_set_values(&a_y, 42, 46); // oscillazione di 3 px
-    lv_anim_set_time(&a_y, 300);
-    lv_anim_set_playback_time(&a_y, 300);
+    lv_anim_set_time(&a_y, 600);
+    lv_anim_set_playback_time(&a_y, 600);
     lv_anim_set_repeat_count(&a_y, LV_ANIM_REPEAT_INFINITE);
     lv_anim_start(&a_y);
 
@@ -738,7 +770,7 @@ void create_cat(lv_obj_t *parent)
     lv_anim_set_var(&a_x, img);
     lv_anim_set_exec_cb(&a_x, (lv_anim_exec_xcb_t)lv_obj_set_x);
     lv_anim_set_values(&a_x, 138, 142); // scorrimento di 100 px
-    lv_anim_set_time(&a_x, 300);
+    lv_anim_set_time(&a_x, 600);
     lv_anim_set_repeat_count(&a_x, LV_ANIM_REPEAT_INFINITE);
     lv_anim_start(&a_x);
 
@@ -747,7 +779,7 @@ void create_cat(lv_obj_t *parent)
     lv_anim_set_var(&p1_x, paw);
     lv_anim_set_exec_cb(&p1_x, (lv_anim_exec_xcb_t)lv_obj_set_x);
     lv_anim_set_values(&p1_x, 140 + 30, 140 + 34);
-    lv_anim_set_time(&p1_x, 300);
+    lv_anim_set_time(&p1_x, 600);
     lv_anim_set_repeat_count(&p1_x, LV_ANIM_REPEAT_INFINITE);
     lv_anim_start(&p1_x);
 
@@ -756,7 +788,7 @@ void create_cat(lv_obj_t *parent)
     lv_anim_set_var(&p2_x, paw2);
     lv_anim_set_exec_cb(&p2_x, (lv_anim_exec_xcb_t)lv_obj_set_x);
     lv_anim_set_values(&p2_x, 140 + 90, 140 + 94);
-    lv_anim_set_time(&p2_x, 300);
+    lv_anim_set_time(&p2_x, 600);
     lv_anim_set_repeat_count(&p2_x, LV_ANIM_REPEAT_INFINITE);
     lv_anim_start(&p2_x);
 
@@ -765,7 +797,7 @@ void create_cat(lv_obj_t *parent)
     lv_anim_set_var(&p1_y, paw);
     lv_anim_set_exec_cb(&p1_y, (lv_anim_exec_xcb_t)lv_obj_set_y);
     lv_anim_set_values(&p1_y, 123 + 38, 123 + 41);
-    lv_anim_set_time(&p1_y, 300);
+    lv_anim_set_time(&p1_y, 600);
     lv_anim_set_repeat_count(&p1_y, LV_ANIM_REPEAT_INFINITE);
     lv_anim_start(&p1_y);
 
@@ -774,10 +806,11 @@ void create_cat(lv_obj_t *parent)
     lv_anim_set_var(&p2_y, paw2);
     lv_anim_set_exec_cb(&p2_y, (lv_anim_exec_xcb_t)lv_obj_set_y);
     lv_anim_set_values(&p2_y, 123 + 38, 123 + 41);
-    lv_anim_set_time(&p2_y, 300);
+    lv_anim_set_time(&p2_y, 600);
     lv_anim_set_repeat_count(&p2_y, LV_ANIM_REPEAT_INFINITE);
     lv_anim_start(&p2_y);
 
+    /*lv_obj_t *tail;
     tail = lv_img_create(parent, NULL);
     lv_img_set_src(tail, &saiyan_tail_sprite);
     lv_obj_set_size(tail, 27, 32); // finestra di visualizzazione
@@ -789,9 +822,9 @@ void create_cat(lv_obj_t *parent)
     lv_anim_t t;
     lv_anim_init(&t);
     lv_anim_set_var(&t, tail);
-    lv_anim_set_exec_cb(&t, anim_tail_cb);
+    // lv_anim_set_exec_cb(&t, anim_tail_cb);
     lv_anim_set_values(&t, 0, 3);
-    lv_anim_set_time(&t, 400);
+    lv_anim_set_time(&t, 800);
     lv_anim_set_repeat_count(&t, LV_ANIM_REPEAT_INFINITE);
     lv_anim_start(&t);
 
@@ -800,9 +833,9 @@ void create_cat(lv_obj_t *parent)
     lv_anim_set_var(&t_x, tail);
     lv_anim_set_exec_cb(&t_x, (lv_anim_exec_xcb_t)lv_obj_set_x);
     lv_anim_set_values(&t_x, 138 - 27, 142 - 27);
-    lv_anim_set_time(&t_x, 300);
+    lv_anim_set_time(&t_x, 600);
     lv_anim_set_repeat_count(&t_x, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_start(&t_x);
+    lv_anim_start(&t_x);*/
 }
 
 void ui_screen_saiyancat_init()
@@ -816,12 +849,12 @@ void ui_screen_saiyancat_init()
     lv_style_set_bg_color(&style_bg, LV_STATE_DEFAULT, LV_COLOR_MAKE(0x00, 0x33, 0x66));
     lv_obj_add_style(scr, LV_OBJ_PART_MAIN, &style_bg);
 
-    create_rainbow_bar(scr, LV_COLOR_RED, 50 + 42);
-    create_rainbow_bar(scr, LV_COLOR_ORANGE, 60 + 42);
-    create_rainbow_bar(scr, LV_COLOR_YELLOW, 70 + 42);
-    create_rainbow_bar(scr, LV_COLOR_GREEN, 80 + 42);
-    create_rainbow_bar(scr, LV_COLOR_BLUE, 90 + 42);
-    create_rainbow_bar(scr, LV_COLOR_PURPLE, 100 + 42);
+    create_rainbow_bar(scr, LV_COLOR_RED, 50 + 42, 1);
+    create_rainbow_bar(scr, LV_COLOR_ORANGE, 60 + 42, 2);
+    create_rainbow_bar(scr, LV_COLOR_YELLOW, 70 + 42, 3);
+    create_rainbow_bar(scr, LV_COLOR_GREEN, 80 + 42, 4);
+    create_rainbow_bar(scr, LV_COLOR_BLUE, 90 + 42, 5);
+    create_rainbow_bar(scr, LV_COLOR_PURPLE, 100 + 42, 6);
     create_cat(scr);
     create_star(scr, 50, 32, 1);
     create_star(scr, 38, 190, 2);
@@ -870,6 +903,7 @@ void ui_screen_saiyancat_init()
 
 void ui_screen_crilin_init()
 {
+    LV_IMG_DECLARE(crilitrunks_8bit);
     lv_obj_t *scr = lv_obj_create(NULL, NULL);
     lv_obj_clean(scr);
 
@@ -950,6 +984,8 @@ void get_formatted_time(char *buffer, size_t size)
 
 void ui_screen_otp_init()
 {
+    LV_IMG_DECLARE(display_otp);
+
     lv_obj_t *scr = lv_obj_create(NULL, NULL);
     lv_obj_clean(scr);
 
@@ -1129,79 +1165,114 @@ void ui_screen_snake_init()
 
 void ui_ap_start_handler()
 {
-    ap_started = true;
+    if (!xGuiSemaphore)
+        return;
+    if (pdTRUE == xSemaphoreTake(xGuiSemaphore, pdMS_TO_TICKS(200)))
+    {
+        ap_started = true;
 
-    ESP_LOGI("UI", "AP started handler called");
-    lv_label_set_text(hotspot_switch_text, "TURN OFF AP");
+        ESP_LOGI("UI", "AP started handler called");
+        lv_label_set_text(hotspot_switch_text, "TURN OFF AP");
 
-    char buf[50] = {0};
-    snprintf(buf, sizeof(buf), "SSID: %s | PASS: %s", badge_obj.ap_ssid, badge_obj.ap_password);
-    lv_label_set_text(hotspot_ssid, buf);
-    lv_obj_set_hidden(hotspot_ssid, false);
+        char buf[50] = {0};
+        snprintf(buf, sizeof(buf), "SSID: %s | PASS: %s", badge_obj.ap_ssid, badge_obj.ap_password);
+        lv_label_set_text(hotspot_ssid, buf);
+        lv_obj_set_hidden(hotspot_ssid, false);
 
-    ui_update_ip_info();
-    // xTaskCreate(ui_delayed_ip_update_task, "delayed_ip_update", 2048, NULL, 5, NULL);
+        ui_update_ip_info();
+        // xTaskCreate(ui_delayed_ip_update_task, "delayed_ip_update", 2048, NULL, 5, NULL);
 
-    lv_btn_set_state(hotspot_switch, LV_BTN_STATE_CHECKED_PRESSED);
-    admin_state = ADMIN_STATE_AP;
+        lv_btn_set_state(hotspot_switch, LV_BTN_STATE_CHECKED_PRESSED);
+        admin_state = ADMIN_STATE_AP;
+        xSemaphoreGive(xGuiSemaphore);
+    }
 }
 
 void ui_ap_stop_handler()
 {
-    ap_started = false;
+    if (!xGuiSemaphore)
+        return;
+    if (pdTRUE == xSemaphoreTake(xGuiSemaphore, pdMS_TO_TICKS(200)))
+    {
+        ap_started = false;
 
-    lv_label_set_text(hotspot_switch_text, "TURN ON AP");
-    lv_obj_set_hidden(hotspot_ssid, true);
-    // lv_obj_set_hidden(hotspot_ip, true);
+        lv_label_set_text(hotspot_switch_text, "TURN ON AP");
+        lv_obj_set_hidden(hotspot_ssid, true);
+        // lv_obj_set_hidden(hotspot_ip, true);
 
-    lv_btn_set_state(hotspot_switch, LV_BTN_STATE_RELEASED); // enabl(admin_switch);
-    admin_state = ADMIN_STATE_OFF;
+        lv_btn_set_state(hotspot_switch, LV_BTN_STATE_RELEASED); // enabl(admin_switch);
+        admin_state = ADMIN_STATE_OFF;
+        xSemaphoreGive(xGuiSemaphore);
+    }
 }
 
 void ui_sta_connected_handler()
 {
-    sta_connected = true;
+    if (!xGuiSemaphore)
+        return;
+    if (pdTRUE == xSemaphoreTake(xGuiSemaphore, pdMS_TO_TICKS(200)))
+    {
+        sta_connected = true;
 
-    ESP_LOGI("UI", "STA connected handler called");
-    ESP_LOGI("UI", "Current admin_state: %d", admin_state);
-    ESP_LOGI("UI", "Current screen: %d", current_screen);
+        ESP_LOGI("UI", "STA connected handler called");
+        ESP_LOGI("UI", "Current admin_state: %d", admin_state);
+        ESP_LOGI("UI", "Current screen: %d", current_screen);
 
-    lv_btn_set_state(sta_switch, LV_BTN_STATE_CHECKED_PRESSED);
-    lv_label_set_text(sta_switch_text, "Connected to wifi");
+        lv_btn_set_state(sta_switch, LV_BTN_STATE_CHECKED_PRESSED);
+        lv_label_set_text(sta_switch_text, "Connected to wifi");
 
-    // Update IP information when connected as station immediately
-    ESP_LOGI("UI", "About to call ui_update_ip_info from STA connected handler");
-    ui_update_ip_info();
-    ESP_LOGI("UI", "ui_update_ip_info call completed from STA connected handler");
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    ui_update_ip_info();
-    // TODO: Also create a delayed task to retry getting IP info
-    // xTaskCreate(ui_delayed_ip_update_task, "delayed_ip_update", 2048, NULL, 5, NULL);
+        // Update IP information when connected as station immediately
+        ESP_LOGI("UI", "About to call ui_update_ip_info from STA connected handler");
+        ui_update_ip_info();
+        ESP_LOGI("UI", "ui_update_ip_info call completed from STA connected handler");
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        ui_update_ip_info();
+        // TODO: Also create a delayed task to retry getting IP info
+        // xTaskCreate(ui_delayed_ip_update_task, "delayed_ip_update", 2048, NULL, 5, NULL);
 
-    admin_state = ADMIN_STATE_STA;
+        admin_state = ADMIN_STATE_STA;
+        xSemaphoreGive(xGuiSemaphore);
+    }
 }
 
 void ui_sta_disconnected_handler()
 {
-    sta_connected = false;
-    lv_btn_set_state(sta_switch, LV_BTN_STATE_RELEASED);
-    lv_obj_set_hidden(sta_client_ip, true);
-    lv_obj_set_hidden(sta_gateway_ip, true);
-    ui_update_ip_info();
-    admin_state = ADMIN_STATE_OFF;
+    if (!xGuiSemaphore)
+        return;
+    if (pdTRUE == xSemaphoreTake(xGuiSemaphore, pdMS_TO_TICKS(200)))
+    {
+        sta_connected = false;
+        lv_btn_set_state(sta_switch, LV_BTN_STATE_RELEASED);
+        lv_obj_set_hidden(sta_client_ip, true);
+        lv_obj_set_hidden(sta_gateway_ip, true);
+        ui_update_ip_info();
+        admin_state = ADMIN_STATE_OFF;
+        xSemaphoreGive(xGuiSemaphore);
+    }
 }
 
 void ui_sta_stop_handler()
 {
-    sta_connected = false;
-    lv_label_set_text(sta_switch_text, "CONNECT TO INTERNET");
-    lv_obj_set_hidden(sta_client_ip, true);
-    lv_obj_set_hidden(sta_gateway_ip, true);
-    admin_state = ADMIN_STATE_OFF;
+    if (!xGuiSemaphore)
+        return;
+    if (pdTRUE == xSemaphoreTake(xGuiSemaphore, pdMS_TO_TICKS(200)))
+    {
+        sta_connected = false;
+        lv_label_set_text(sta_switch_text, "CONNECT TO INTERNET");
+        lv_obj_set_hidden(sta_client_ip, true);
+        lv_obj_set_hidden(sta_gateway_ip, true);
+        admin_state = ADMIN_STATE_OFF;
+        xSemaphoreGive(xGuiSemaphore);
+    }
 }
 
 void ui_connection_progress(uint8_t cur, uint8_t max)
 {
+    if (!xGuiSemaphore)
+        return;
+    if (pdTRUE != xSemaphoreTake(xGuiSemaphore, pdMS_TO_TICKS(200)))
+        return;
+
     if (cur != max)
     {
         char buf[48] = {0}; // Increase the size of buf to accommodate the entire formatted string
@@ -1212,6 +1283,7 @@ void ui_connection_progress(uint8_t cur, uint8_t max)
     {
         lv_label_set_text(sta_switch_text, "Connection failed!");
     }
+    xSemaphoreGive(xGuiSemaphore);
 }
 
 void ui_update_ip_info()
@@ -1375,7 +1447,7 @@ static void ui_init(void)
 
     ui_screen_snake_init();
 
-    ui_screen_saiyancat_init();
+    // ui_screen_saiyancat_init();
 
     ui_screen_crilin_init();
 
@@ -1384,7 +1456,7 @@ static void ui_init(void)
     radar_task_handle = lv_task_create(ui_radar_task, 2000, LV_TASK_PRIO_OFF, NULL);
     rssi_task_handle = lv_task_create(ui_rssi_task, 2000, LV_TASK_PRIO_OFF, NULL);
     snake_task_handle = lv_task_create(snake_task, 50, LV_TASK_PRIO_OFF, NULL);
-    otp_task_handle = lv_task_create(otp_task, 50, LV_TASK_PRIO_OFF, NULL);
+    otp_task_handle = lv_task_create(otp_task, 1000, LV_TASK_PRIO_OFF, NULL);
 
     // show first page.
     lv_scr_load(screens[current_screen]);
@@ -1407,8 +1479,12 @@ static void ui_tick_task(void *arg)
 
 void ui_task(void *arg)
 {
-    SemaphoreHandle_t xGuiSemaphore;
-    xGuiSemaphore = xSemaphoreCreateMutex();
+    // create global GUI semaphore
+    if (xGuiSemaphore == NULL)
+    {
+        xGuiSemaphore = xSemaphoreCreateMutex();
+        // optional: check xGuiSemaphore != NULL
+    }
 
     lv_init();
     lvgl_driver_init();
@@ -1455,17 +1531,78 @@ void ui_task(void *arg)
     vTaskDelete(NULL);
 }
 
+void lv_del_all_anims(lv_obj_t *parent)
+{
+    if (!parent)
+        return;
+
+    lv_anim_del(parent, NULL);
+
+    // Conta i figli
+    uint32_t child_cnt = lv_obj_count_children(parent);
+    if (child_cnt == 0)
+        return;
+
+    // Alloca array temporaneo
+    lv_obj_t **children = malloc(child_cnt * sizeof(lv_obj_t *));
+    if (!children)
+        return;
+
+    // Riempi array con i figli
+    lv_obj_t *child = lv_obj_get_child(parent, NULL);
+    for (uint32_t i = 0; i < child_cnt; i++)
+    {
+        children[i] = child;
+        child = lv_obj_get_child(parent, child);
+    }
+
+    // Cancella animazioni ricorsivamente
+    for (uint32_t i = 0; i < child_cnt; i++)
+    {
+        lv_del_all_anims(children[i]);
+    }
+
+    free(children);
+}
+
 void ui_switch_page_down()
 {
     ui_update_backlight(true);
 
     current_ctf_screen = CTF_SCREEN_NYAN;
+    int8_t past_screen = current_screen;
 
     current_screen++;
     current_screen %= NUM_SCREENS;
     ESP_LOGI("DISPLAY", "DISPLAY COUNTER: %d/%d", current_screen + 1, NUM_SCREENS);
 
-    lv_scr_load_anim(screens[current_screen], LV_SCR_LOAD_ANIM_OVER_TOP, 300, 0, false);
+    if ((current_screen == SCREEN_NYAN) && (!screens[current_screen]))
+    {
+        ui_screen_saiyancat_init();
+    }
+
+    if (past_screen == SCREEN_NYAN)
+    {
+        ESP_LOGI("DISPLAY", "Past screen was %d, new screen is %d forcing screen load without animation", past_screen, current_screen);
+        ESP_LOGI("DISPLAY", "Animations cleared", past_screen, current_screen);
+
+        lv_scr_load(screens[current_screen]);
+
+        if (screens[past_screen])
+        {
+            ESP_LOGI("DISPLAY", "Deleting past screen %d now", past_screen);
+            /* explicitly stop animations on the rainbow bars (safe and deterministic) */
+            clean_nyan_rainbow_animations();
+            lv_del_all_anims(screens[past_screen]);
+            // lv_obj_clean(screens[past_screen]);
+            lv_obj_del(screens[past_screen]);
+            screens[past_screen] = NULL;
+        }
+    }
+    else
+    {
+        lv_scr_load_anim(screens[current_screen], LV_SCR_LOAD_ANIM_OVER_BOTTOM, 300, 0, false);
+    }
 
     restore_current_task();
 }
@@ -1484,17 +1621,51 @@ void ui_switch_page_up()
 {
     ui_update_backlight(true);
 
+    bool delete_past_screen = false;
+    int8_t past_screen = current_screen;
+
     current_screen--;
     current_screen = (NUM_SCREENS + (current_screen % NUM_SCREENS)) % NUM_SCREENS;
     ESP_LOGI("DISPLAY", "DISPLAY COUNTER: %d/%d", current_screen + 1, NUM_SCREENS);
 
-    lv_scr_load_anim(screens[current_screen], LV_SCR_LOAD_ANIM_OVER_BOTTOM, 300, 0, false);
+    if ((current_screen == SCREEN_NYAN) && (!screens[current_screen]))
+    {
+        ui_screen_saiyancat_init();
+    }
 
+    if (past_screen == SCREEN_NYAN)
+    {
+        ESP_LOGI("DISPLAY", "Past screen was %d, new screen is %d forcing screen load without animation", past_screen, current_screen);
+        ESP_LOGI("DISPLAY", "Animations cleared", past_screen, current_screen);
+
+        lv_scr_load(screens[current_screen]);
+
+        if (screens[past_screen])
+        {
+            ESP_LOGI("DISPLAY", "Deleting past screen %d now", past_screen);
+            /* explicitly stop animations on the rainbow bars (safe and deterministic) */
+            clean_nyan_rainbow_animations();
+            lv_del_all_anims(screens[past_screen]);
+            // lv_obj_clean(screens[past_screen]);
+            lv_obj_del(screens[past_screen]);
+            screens[past_screen] = NULL;
+        }
+    }
+    else
+    {
+        lv_scr_load_anim(screens[current_screen], LV_SCR_LOAD_ANIM_OVER_BOTTOM, 300, 0, false);
+    }
     restore_current_task();
 }
 
 void button_task(void *arg)
 {
+    // wait until ui_task has created the semaphore
+    while (xGuiSemaphore == NULL)
+    {
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+
     static button_event_t curr_ev;
     static button_event_t prev_ev[2];
     static QueueHandle_t button_events;
@@ -1509,29 +1680,37 @@ void button_task(void *arg)
             {
                 set_screen_led_backlight(badge_obj.brightness_mid);
             }
-            if (curr_ev.pin == BUTTON_1) // DOWN button event
+
+            // take GUI semaphore before calling any LVGL helpers
+            if (pdTRUE == xSemaphoreTake(xGuiSemaphore, portMAX_DELAY))
             {
-                if ((prev_ev[btn_id].event == BUTTON_HELD) && (curr_ev.event == BUTTON_UP))
+                if (curr_ev.pin == BUTTON_1) // DOWN button event
                 {
-                    ui_switch_page_down();
+                    if ((prev_ev[btn_id].event == BUTTON_HELD) && (curr_ev.event == BUTTON_UP))
+                    {
+                        ui_switch_page_down();
+                    }
+                    else if ((prev_ev[btn_id].event == BUTTON_DOWN) && (curr_ev.event == BUTTON_UP))
+                    {
+                        ui_button_down();
+                    }
                 }
-                else if ((prev_ev[btn_id].event == BUTTON_DOWN) && (curr_ev.event == BUTTON_UP))
+
+                if (curr_ev.pin == BUTTON_2) // UP button event
                 {
-                    ui_button_down();
+                    if ((prev_ev[btn_id].event == BUTTON_HELD) && (curr_ev.event == BUTTON_UP))
+                    {
+                        ui_switch_page_up();
+                    }
+                    else if ((prev_ev[btn_id].event == BUTTON_DOWN) && (curr_ev.event == BUTTON_UP))
+                    {
+                        ui_button_up();
+                    }
                 }
+
+                xSemaphoreGive(xGuiSemaphore);
             }
 
-            if (curr_ev.pin == BUTTON_2) // UP button event
-            {
-                if ((prev_ev[btn_id].event == BUTTON_HELD) && (curr_ev.event == BUTTON_UP))
-                {
-                    ui_switch_page_up();
-                }
-                else if ((prev_ev[btn_id].event == BUTTON_DOWN) && (curr_ev.event == BUTTON_UP))
-                {
-                    ui_button_up();
-                }
-            }
             prev_ev[btn_id] = curr_ev;
         }
     }
