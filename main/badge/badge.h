@@ -50,7 +50,7 @@ typedef struct
     char sta_ssid[BADGE_BUF_SIZE];
     char sta_password[BADGE_BUF_SIZE];
     char sync_path[BADGE_BUF_SIZE];
-    char ntp_server[BADGE_BUF_SIZE];
+    char ntp_server[BADGE_BUF_SIZE + 5];
 
     // Display brightness settings
     uint8_t brightness_max;

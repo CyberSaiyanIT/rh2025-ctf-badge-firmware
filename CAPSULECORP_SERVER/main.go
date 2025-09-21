@@ -350,55 +350,55 @@ Meaning: One trip forward, one trip back. No retries.
   <rect x="300" y="100" width="180" height="100" fill="none" stroke="#000"/>
   <text x="140" y="150" font-size="12">Energy Core</text>
   <text x="320" y="150" font-size="12">Capacitor Array</text>
-</svg>`, modtime: time.Date(2045, 9, 1, 8, 0, 0, 0, time.UTC)},},
-		"trunks": {
-			"august.txt": {content: `
-07.08.2045
+</svg>`, modtime: time.Date(2045, 9, 1, 8, 0, 0, 0, time.UTC)}},
+	"trunks": {
+		"august.txt": {content: `
+07.08.2034
 The sky has turned a rusted gray. Smoke never leaves the horizon.
 I trained all night again. Even with Mother’s new modifications to the gravity chamber, I still can’t close the gap. The Androids… they don’t tire. They don’t doubt.
 Today I watched them burn down the eastern block. There were still families there, hiding. I tried to reach them—
 
-10.08.2045
+10.08.2034
 The resistance is nearly gone. I buried three fighters today. I said their names aloud, though no one else remained to hear me. Someone should remember.
 Mother tells me not to lose hope. She works tirelessly, scavenging, building, planning. But I see the exhaustion in her eyes. She’s aged so much.
 Sometimes… I wonder if I’ve already failed.
 
-14.08.2045
+14.08.2034
 They came for West City again. I intercepted them near the old Capsule Corp satellite facility.
 I held them back… barely. My arm still shakes as I write this. The pain is sharp.
 But I saw them smile. They enjoyed it.
 If Father were here… if Goku were alive… would this nightmare even exist? I won’t give up.
 
-18.08.2045
+18.08.2034
 I dreamed of Father last night. His voice was distant, but I felt his pride. Maybe it was just my imagination.
 Every day feels like a borrowed hour. Still, when I lift my sword, I swear I feel all of them with me—Father, Gohan, even Goku.
 I can’t shake this thought: there must be another way. A path I haven’t seen yet. Mother speaks of her machine… time itself.
 If she’s right, then maybe I can bring back hope.
 
-22.08.2045
+22.08.2034
 This may be my last entry.
 The time machine is nearly complete. Mother says it can only take me once. Once to the past, once to warn them.
 I’ll go back twenty years. I’ll find Goku. I’ll tell him everything. Maybe together they can stop what I couldn’t.
 I leave this diary behind for her, in case I never return.
 Mother… thank you. Gohan… I’ll carry your will.
-		`, modtime: time.Date(2045, 8, 22, 20, 34, 58, 0, time.UTC)},
-			"september.txt": {content: `
-10.09.2045
+		`, modtime: time.Date(2034, 8, 22, 20, 34, 58, 0, time.UTC)},
+		"september.txt": {content: `
+10.09.2034
 The machine stands ready. I tested its power core today. It hummed with energy, unlike anything I’ve felt before.
 But the Androids are restless. They must sense something. They destroyed the southern refugee camp. I fought them—
 [Gap: two shaky lines, illegible, written mid-battle. The pen cut through the paper.]
 —I barely escaped. If they find Capsule Corp, everything ends.
 
-26.09.2045
+26.09.2034
 Tomorrow… tomorrow I leave this ruined world behind. The time machine hums in the corner, ready to tear through years. 2025. I will find Crili there, just like we planned. We’ll attend RomHack together… see what kind of trouble they stir.
 But I’m not going there for fun alone. Red Ribbons… their presence lingers like a shadow. I need to spot them. Track them. And Dr. Gelo—he’s the key. He might have left some device at RomHack.
 I hope I’m ready. I hope I can… make a difference, even there.
 
-
-27.09.2045
-I needed some place where to store some important information about my time travel... luckily Cyber Saiyan offered to help me with some hosting under their domain.`,
-				modtime: time.Date(2045, 9, 27, 7, 2, 58, 0, time.UTC)},
-		},
+27.09.2034
+I needed some place where to store some important information about my time travel... luckily Cyber Saiyan offered to help me with some hosting under their domain.
+What I need from Red Ribbon will be at RomHack 2025... after the conference I will host online on redribbon.cybersaiyan.it. I hope some hackers will be able to help me.`,
+			modtime: time.Date(2034, 9, 27, 7, 2, 58, 0, time.UTC)},
+	},
 }
 
 func main() {

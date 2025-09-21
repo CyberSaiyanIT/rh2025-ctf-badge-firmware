@@ -187,6 +187,8 @@ static esp_err_t system_info_handler(httpd_req_t *req)
     esp_chip_info_t chip_info;
     esp_chip_info(&chip_info);
 
+    cJSON_AddStringToObject(response, "mac address", badge_obj.mac);
+
     cJSON_AddStringToObject(response, "IDF version", IDF_VER);
     cJSON_AddNumberToObject(response, "# cores", chip_info.cores);
     cJSON_AddStringToObject(response, "firmware branch", GIT_BRANCH);

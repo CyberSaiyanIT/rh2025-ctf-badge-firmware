@@ -111,11 +111,11 @@
         },
         {
             "day": "-",
-            "duration": "",
+            "duration": "-",
             "hour": "19:00",
-            "location": "Salone delle Fontane",
+            "location": "-",
             "sort": "1100",
-            "speaker": "",
+            "speaker": "-",
             "title": "After conference party"
         }
     ]

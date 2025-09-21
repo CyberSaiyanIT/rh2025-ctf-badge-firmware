@@ -535,7 +535,7 @@ static void otp_task(lv_task_t *arg)
         return;
     }
     char otp[7];
-    generate_otp("JBSWY3DPEHPK3PXP", otp, sizeof(otp));
+    generate_otp("U55E3MN265I63UDLUTVOV2PKUL5PSTKJ", otp, sizeof(otp));
     lv_label_set_text(otp_label, otp);
 }
 
