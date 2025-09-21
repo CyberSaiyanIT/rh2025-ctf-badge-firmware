@@ -219,7 +219,12 @@ void ui_button_up()
             char formattedtime[20];
             get_formatted_time(formattedtime, sizeof(formattedtime));
 
-            lv_label_set_text_fmt(debug_label, "DEBUG MODE ACTIVATED.\nLOCAL TIME:%s\n\nTimeSync Function at %p\n\nPowered by CapsCorp\nhttps://capscorp.cybersaiyan.it", formattedtime, (void *)obtain_time);
+            char mac_str[18] = {0};
+            snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
+                     badge_obj.mac[0], badge_obj.mac[1], badge_obj.mac[2],
+                     badge_obj.mac[3], badge_obj.mac[4], badge_obj.mac[5]);
+
+            lv_label_set_text_fmt(debug_label, "DEBUG MODE ACTIVATED.\nLOCAL TIME:%s\nMAC ADDRESS:%s\nTimeSync Function at %p\n\nPowered by CapsCorp\nhttps://capscorp.cybersaiyan.it", formattedtime, mac_str, (void *)obtain_time);
         }
         break;
     case SCREEN_ADMIN:
