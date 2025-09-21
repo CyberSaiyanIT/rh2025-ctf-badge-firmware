@@ -187,7 +187,12 @@ static esp_err_t system_info_handler(httpd_req_t *req)
     esp_chip_info_t chip_info;
     esp_chip_info(&chip_info);
 
-    cJSON_AddStringToObject(response, "mac address", badge_obj.mac);
+    char mac_str[18] = {0};
+    snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
+             badge_obj.mac[0], badge_obj.mac[1], badge_obj.mac[2],
+             badge_obj.mac[3], badge_obj.mac[4], badge_obj.mac[5]);
+
+    cJSON_AddStringToObject(response, "mac address", mac_str);
 
     cJSON_AddStringToObject(response, "IDF version", IDF_VER);
     cJSON_AddNumberToObject(response, "# cores", chip_info.cores);
