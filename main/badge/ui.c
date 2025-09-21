@@ -204,7 +204,7 @@ void ui_button_up()
     switch (current_screen)
     {
     case SCREEN_SNAKE:
-        lv_task_set_prio(snake_task_handle, LV_TASK_PRIO_LOW);
+        lv_task_set_prio(snake_task_handle, LV_TASK_PRIO_HIGHEST);
         snake_set_dir(1);
         break;
     case SCREEN_NYAN:
@@ -302,7 +302,7 @@ void ui_button_down()
     switch (current_screen)
     {
     case SCREEN_SNAKE:
-        lv_task_set_prio(snake_task_handle, LV_TASK_PRIO_LOW);
+        lv_task_set_prio(snake_task_handle, LV_TASK_PRIO_HIGHEST);
         snake_set_dir(-1);
         break;
     case SCREEN_NYAN:
