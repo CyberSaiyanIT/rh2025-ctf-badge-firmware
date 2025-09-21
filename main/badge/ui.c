@@ -1298,6 +1298,7 @@ void ui_update_ip_info()
 
     // First, list all network interfaces for debugging
     ui_list_all_netifs();
+    bool ip_found = false;
 
     // Get AP interface and show AP IP when AP is started
     if (ap_started)
@@ -1321,7 +1322,7 @@ void ui_update_ip_info()
                 lv_label_set_text(hotspot_ip, buf);
                 lv_obj_set_hidden(hotspot_ip, false);
                 ESP_LOGI("UI", "Set hotspot_ip text to: %s", buf);
-                return;
+                ip_found = true;
             }
         }
     }
@@ -1358,7 +1359,7 @@ void ui_update_ip_info()
                 lv_obj_set_hidden(sta_gateway_ip, false);
                 ESP_LOGI("UI", "Set admin_gateway_ip text to: %s", buf);
                 ESP_LOGI("UI", "Successfully displayed STA IP info");
-                return;
+                ip_found = true;
             }
             else
             {
@@ -1372,13 +1373,15 @@ void ui_update_ip_info()
         }
     }
 
+    if (ip_found)
+        return;
+
     // If we reach here, we couldn't get IP info through normal methods
     // Try iterating through all interfaces as fallback
     ESP_LOGI("UI", "Primary methods failed, trying to iterate through all interfaces...");
 
     esp_netif_t *netif = NULL;
     esp_netif_t *temp_netif = esp_netif_next(netif);
-    bool ip_found = false;
 
     while (temp_netif != NULL && !ip_found)
     {

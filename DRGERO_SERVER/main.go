@@ -68,7 +68,7 @@ func main() {
 		fmt.Fprintln(s, "Deactivating the Androids...")
 		time.Sleep(2 * time.Second)
 		fmt.Fprintln(s, "The Androids have been deactivated.")
-		fmt.Fprintln(s, "🔍 Time for the final step! Enter your Badge MAC Address (you’ll find it in the web interface under badge_stats) to unlock the ultimate flag 🚩:")
+		fmt.Fprintln(s, "🔍 Time for the final step! Enter your Badge MAC Address (you’ll find it in the web interface under badge_stats or in the debug mode of the TOTP) to unlock the ultimate flag 🚩:")
 
 		macAddress, err := terminal.ReadLine()
 		if err != nil {
