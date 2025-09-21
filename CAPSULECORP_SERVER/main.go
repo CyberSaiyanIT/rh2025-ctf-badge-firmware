@@ -395,8 +395,8 @@ But I’m not going there for fun alone. Red Ribbons… their presence lingers l
 I hope I’m ready. I hope I can… make a difference, even there.
 
 27.09.2034
-I needed some place where to store some important information about my time travel... luckily Cyber Saiyan offered to help me with some hosting under their domain.
-What I need from Red Ribbon will be at RomHack 2025... after the conference I will host online on redribbon.cybersaiyan.it. I hope some hackers will be able to help me.`,
+I needed some place where to store some important information about my time travel... luckily Cyber Saiyan offered to help me with hosting my server under their domain.
+What I need from Red Ribbon will be at RomHack 2025... I plugged also that online at redribbon.cybersaiyan.it. I hope some hackers will be able to help me.`,
 			modtime: time.Date(2034, 9, 27, 7, 2, 58, 0, time.UTC)},
 	},
 }
