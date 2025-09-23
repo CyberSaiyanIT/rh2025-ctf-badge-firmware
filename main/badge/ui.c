@@ -1045,6 +1045,9 @@ void ui_screen_radar_init()
     lv_obj_t *img = lv_img_create(screen_radar, NULL);
     lv_img_set_src(img, &img_radar);
     lv_obj_align(img, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 0);
+    static lv_style_t style;
+    lv_style_init(&style);
+    lv_style_set_text_font(&style, LV_OBJ_PART_MAIN, &lv_font_montserrat_10);
 
     for (int i = 0; i < sizeof(radar_node) / sizeof(lv_obj_t *); i++)
     {
@@ -1052,6 +1055,7 @@ void ui_screen_radar_init()
         lv_obj_set_size(radar_node[i], 20, 20);
         lv_btn_toggle(radar_node[i]); // set to solid color.
         lv_obj_set_hidden(radar_node[i], true);
+        lv_obj_add_style(radar_node[i], LV_BTN_PART_MAIN, &style);
         radar_node_number[i] = lv_label_create(radar_node[i], NULL);
         lv_label_set_text(radar_node_number[i], "X");
     }
