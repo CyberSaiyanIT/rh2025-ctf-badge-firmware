@@ -16,7 +16,7 @@
             "hour": "-",
             "location": "-",
             "sort": "998",
-            "speaker": "-",
+            "speaker": "Cyber Saiyan",
             "title": "RomHack CTF 2025"
         },
         {
@@ -61,7 +61,7 @@
             "hour": "12:45 - 14:45",
             "location": "Bar at the venue, restaurants of your choice nearby",
             "sort": "1050",
-            "speaker": "~",
+            "speaker": "N.A.",
             "title": "Lunch Break"
         },
         {
@@ -113,9 +113,9 @@
             "day": "-",
             "duration": "-",
             "hour": "19:00",
-            "location": "-",
+            "location": "NOCTUA",
             "sort": "1100",
-            "speaker": "-",
+            "speaker": "Cyber Saiyan",
             "title": "After conference party"
         }
     ]
