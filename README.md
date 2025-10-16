@@ -1,5 +1,16 @@
-# WHY2025 Badge
+# RomHack 2025 CTF
 
+The RomHack 2025 badge is the badge we built for the Why2025 Camp with has a custom firmware.
+
+The firmware contains a Capture The Flag and this repo contains the full solution; the walkthrough is [available on YouTube](https://www.youtube.com/watch?v=SV8L_kAHop0)
+
+## Writeups
+
+* [bonfra](docs/RomHack_Badge_CTF_writeup_by_bonfra.pdf)
+* [Stayerko](https://ercolino.me/research/romhack2025-ctf/)
+* [draghetti](https://draghetti.craft.me/DlbI3JbmJW7ahF)
+
+# WHY2025 Badge
 
 ![WHY2025 badge front](img/WHY2025_badge_front.png)
 ![WHY2025 badge rear](img/WHY2025_badge_rear.png)
