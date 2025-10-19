@@ -7,7 +7,7 @@ The firmware contains a Capture The Flag and this repo contains the full solutio
 ## Writeups
 
 * [bonfra](docs/RomHack_Badge_CTF_writeup_by_bonfra.pdf)
-* [Stayerko](https://ercolino.me/research/romhack2025-ctf/)
+* [Stayerk](https://ercolino.me/research/romhack2025-ctf/)
 * [draghetti](https://draghetti.craft.me/DlbI3JbmJW7ahF)
 
 # WHY2025 Badge
